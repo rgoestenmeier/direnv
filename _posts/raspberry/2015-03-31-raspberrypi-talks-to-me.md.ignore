@@ -1,0 +1,18 @@
+---
+layout: page-fullwidth
+sidebar: right
+breadcrumb: true
+
+subheadline: Everything can talk ...
+title:  "My Raspberry Pi talks to me"
+
+tags:
+    - raspberry
+
+categories:
+    - raspberry
+
+image:
+    title: "posts/2015-03-31-raspberrypi-talks-to-me.png"
+
+---

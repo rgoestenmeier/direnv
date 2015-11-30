@@ -1,0 +1,17 @@
+---
+layout: page-fullwidth
+sidebar: right
+breadcrumb: true
+
+title:  "Lets start with the Raspberry Pi"
+subheadline: Let's start
+
+tags:
+    - raspberry
+
+categories:
+    - raspberry
+
+image:
+    title: "2015-03-31-raspberrypi-lets-start.png"
+---

@@ -1,0 +1,51 @@
+- title: Home
+  url: "/"
+  side: left
+
+- title: Projects
+  url: "/projects"
+  side: left
+#  dropdown:
+#  - title: Swift
+#    url: "/projects/swift/"
+#  - title: SAS
+#    url: "/projects/sas/"
+#  - title: Python
+#    url: "/projects/python/"
+#  - title: JavaScript
+#    url: "/projects/javascript/"
+#  - title: Bash
+#    url: "/projects/bash/"
+#  - title: VBA
+#    url: "/projects/vba/"
+
+- title: Blog
+  url: "/blog/"
+  side: left
+#  dropdown:
+#  - title: "Archive"
+#    url: "/blog/archive/"
+
+#- title: Internal
+#  side: left
+#  dropdown:
+#  - title: Getting Started
+#    url: "/getting-started/"
+#  - title: "Templates"
+#    url: "/design/"
+#  - title: "Header Styles"
+#    url: "/headers/"
+#  - title: Documentation
+#    url: "/documentation/"
+
+- title: "Search"
+  url: "/search/"
+  side: right
+
+#- title: "Contact"
+#  url: "/contact/"
+#  side: right
+
+- title: About
+  url: "/about"
+  side: right

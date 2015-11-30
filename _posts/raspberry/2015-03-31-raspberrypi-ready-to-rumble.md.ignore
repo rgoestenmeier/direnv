@@ -1,0 +1,28 @@
+---
+layout: page-fullwidth
+sidebar: right
+breadcrumb: true
+
+subheadline: Ready to Rumble
+title:  "Ready to Rumble"
+
+tags:
+    - raspberry
+
+categories:
+    - raspberry
+
+image:
+    title: "posts/2015-03-31-raspberrypi-ready-to-rumble.png"
+---
+<div class="row">
+<div class="medium-4 medium-push-8 columns" markdown="1">
+<div class="panel radius" markdown="1">
+**Table of Contents**
+{: #toc }
+*  TOC
+{:toc}
+</div>
+</div><!-- /.medium-4.columns -->
+
+<div class="medium-8 medium-pull-4 columns" markdown="1">

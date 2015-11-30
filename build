@@ -1,0 +1,10 @@
+#!/bin/bash
+
+SITE="$(grep ^destination _config.yml  | cut -d: -f2)"
+
+echo Build Site
+jekyll build  --watch
+
+echo Tidy pages
+find $SITE -type f -name "*.html" -exec tidy -i -w 200 -f err -m  {} \;
+

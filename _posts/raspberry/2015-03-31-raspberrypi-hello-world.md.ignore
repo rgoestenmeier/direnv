@@ -1,0 +1,17 @@
+---
+layout: page-fullwidth
+sidebar: right
+breadcrumb: true
+
+title: "The 'must have' in the world of the Raspberry Pi"
+subheadline: "Hello World"
+
+tags:
+    - raspberry
+
+categories:
+    - raspberry
+
+image:
+    title: "posts/2015-03-31-raspberrypi-hello-world.png"
+---
