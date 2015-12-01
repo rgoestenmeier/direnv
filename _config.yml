@@ -1,15 +1,15 @@
 # Build Settings
 destination: ../web
 
-title: "Developer Toolbox"
-slogan: design, program, test, run, be happy
-description: design, program, test, run, be happy
+title:          "Developer Toolbox"
+slogan:         design, program, test, run, be happy
+description:    design, program, test, run, be happy
 
-author: r14r
+author:         r14r
 
 # This URL is the main address for absolute links. Don't include a slash at the end.
-url: ''
-baseurl: ''
+url:            'http://r14r.github.io/'
+baseurl:        '/'
 
 # This is for the editing function in _/includes/improve_content
 # Leave it empty if your site is not on GitHub/GitHub Pages
