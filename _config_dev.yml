@@ -4,8 +4,9 @@
 # the first one with the development variables needed.
 #
 # Start development with › $ jekyll serve --config _config.yml,_config_dev.yml
+destination: ../r14r.github.io-web
 
-url: 'http://localhost:4000'
+url:    'http://localhost:4000'
 urlimg: 'http://localhost:4000/lib/img/'
 
 sass:

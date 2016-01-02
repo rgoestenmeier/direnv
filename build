@@ -1,9 +1,9 @@
 #!/bin/bash
 
-SITE="$(grep ^destination _config.yml  | cut -d: -f2)"
+SITE="$(grep ^destination _config_dev.yml  | cut -d: -f2)"
 
 echo Build Site
-jekyll build  --watch
+jekyll build  --watch --config _config.yml,_config_dev.yml
 
 echo Tidy pages
 find $SITE -type f -name "*.html" -exec tidy -i -w 200 -f err -m  {} \;
