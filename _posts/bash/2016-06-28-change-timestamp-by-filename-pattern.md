@@ -1,7 +1,7 @@
 ---
 layout: post-fullwidth
 subheadline: Bash - System Commands
-title: Change timestamp of file based on filename pattern
+title: Change timestamp of files based on filename pattern
 teaser: ''
 
 header:
