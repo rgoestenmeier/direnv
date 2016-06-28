@@ -13,7 +13,6 @@ author: r14r
 ---
 # Links
 [Cheatsheet](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet "Markdown-Cheatsheet")
-[I'm an inline-style link with title](https://www.google.com "Google's Homepage")
 
 ## Formating Code Block
 ~~~
