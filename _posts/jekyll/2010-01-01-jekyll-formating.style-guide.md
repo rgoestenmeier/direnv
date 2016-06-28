@@ -11,7 +11,8 @@ tags:
 
 author: r14r
 ---
-# Formating
+# Links
+[https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet]
 
 ## Formating Code Block
 ~~~
