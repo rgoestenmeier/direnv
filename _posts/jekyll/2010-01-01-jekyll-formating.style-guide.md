@@ -12,7 +12,7 @@ tags:
 author: r14r
 ---
 # Links
-[https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet]
+[Cheatsheet](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet)
 
 ## Formating Code Block
 ~~~
