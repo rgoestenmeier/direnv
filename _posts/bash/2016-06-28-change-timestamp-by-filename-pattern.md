@@ -1,8 +1,19 @@
 ---
-layout: post
+layout: post-fullwidth
+subheadline: Bash - System Commands
 title: Change timestamp of file based on filename pattern
+teaser: ''
+
+header:
+  image: header/12.jpg
+
 categories:
-- blog
+  - bash
+
+tags:
+  - post bash
+
+author: r14r
 ---
 
 Suppose you have a list of files which each matches the same pattern include a date/timestamp:
