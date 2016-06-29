@@ -23,12 +23,23 @@ header:
     caption_url: https://unsplash.com/
 ~~~
 
-## Formating with highlight and line numbers in a table
+## Formating with highlight  and line numbers in a table
+{% highlight linenos=table %}
+$ HERE=${0%/*}
+$ SELF=${0##*/}
+{% endhighlight %}
+
+## Formating with highlight bash and line numbers in a table
 {% highlight bash linenos=table %}
 $ HERE=${0%/*}
 $ SELF=${0##*/}
 {% endhighlight %}
 
+## Formating with highlight shell and line numbers in a table
+{% highlight shell linenos=table %}
+$ HERE=${0%/*}
+$ SELF=${0##*/}
+{% endhighlight %}
 ## Other Post Formats
 
 {: .t60 }
