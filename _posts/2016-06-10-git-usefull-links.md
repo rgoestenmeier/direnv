@@ -17,3 +17,5 @@ author: r14r
 ---
 
 [Git Guide](http://rogerdudler.github.io/git-guide/)
+[Git - Howto](https://githowto.com/)
+[https://git-scm.com/doc](https://git-scm.com/doc)
