@@ -42,3 +42,25 @@ cd "$PROJECT"
 git --git-dir $GITHOME --work-tree=. init && echo "gitdir: $GITHOME" > .git
 {% endhighlight %}
 
+
+## Sample Session
+{% highlight bash %}
+$ GITREPO=~/tmp/git/git_repositories
+$ PROJECT=demo
+$ GITHOME="$GITREPO/$PROJECT"
+$ echo $PROJECT
+demo
+$ echo $GITHOME
+/home/user/tmp/git/git_repositories/demo
+$ mkdir -p $GITHOME
+$ mkdir $PROJECT
+$ cd $PROJECT
+$ git --git-dir $GITHOME --work-tree=. init && echo "gitdir: $GITHOME" > .git
+Initialized empty Git repository in /home/crmbatch/tmp/git/git_repositories/demo/
+$ git status
+# On branch master
+#
+# Initial commit
+#
+nothing to commit (create/copy files and use "git add" to track)
+{% endhighlight %}
