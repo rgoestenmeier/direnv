@@ -18,6 +18,9 @@ td.code {
 table.highlighttable {
     width:          100%;
 
+    tr:nth-child(even)  {background:  $grey-1}
+    tr:nth-child(odd)   {background:  $blue}
+
     td.linenos {
         width:      20px;
     }
