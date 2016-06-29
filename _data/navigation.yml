@@ -22,9 +22,9 @@
 - title: Blog
   url: "/blog/"
   side: left
-#  dropdown:
-#  - title: "Archive"
-#    url: "/blog/archive/"
+  dropdown:
+  - title: "Archive"
+    url: "/blog/archive/"
 
 #- title: Internal
 #  side: left
