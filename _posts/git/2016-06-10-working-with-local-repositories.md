@@ -17,46 +17,34 @@ author: r14r
 ---
 
 
-# Create a Git project, storing the repository in a different place
+## Create a Git project, storing the repository in a different place
 Suppose you want to put a directory under git control.
-
 Normaly you would do a git init in the desired folder. But this leads to a subfolder .git, which contains the repository.
-
 If ypu want to place the repository in a diferrent place, use the following steps
 
 ## create common place for repositories
 {% highlight shell %}
-GITREPO=/global_place_of_git_repositories
+$ GITREPO=~/tmp/git/git_repositories
 {% endhighlight %}
 
 ## set vars for project and git folders
 {% highlight shell %}
-PROJECT=$1
-GITHOME="$GITREPO/$PROJECT"
+$ PROJECT=master
+$ GITHOME="$GITREPO/$PROJECT"
+$ echo $PROJECT
+master
+$ echo $GITHOME
+/home/user/tmp/git/git_repositories/master
 {% endhighlight %}
 
 ## create folders
 {% highlight shell %}
-mkdir -p "$GITHOME"
-cd "$PROJECT"
-git --git-dir $GITHOME --work-tree=. init && echo "gitdir: $GITHOME" > .git
-{% endhighlight %}
-
-
-## Sample Session
-{% highlight shell %}
-$ GITREPO=~/tmp/git/git_repositories
-$ PROJECT=demo
-$ GITHOME="$GITREPO/$PROJECT"
-$ echo $PROJECT
-demo
-$ echo $GITHOME
-/home/user/tmp/git/git_repositories/demo
 $ mkdir -p $GITHOME
 $ mkdir $PROJECT
 $ cd $PROJECT
+## initialize repository
 $ git --git-dir $GITHOME --work-tree=. init && echo "gitdir: $GITHOME" > .git
-Initialized empty Git repository in /home/crmbatch/tmp/git/git_repositories/demo/
+Initialized empty Git repository in /home/crmbatch/tmp/git/git_repositories/master/
 $ git status
 # On branch master
 #
@@ -64,3 +52,18 @@ $ git status
 #
 nothing to commit (create/copy files and use "git add" to track)
 {% endhighlight %}
+
+## create work folder for checkout files of reposiory
+{% highlight shell %}
+mkdir work
+cd work
+echo "gitdir: /home/crmbatch/tmp/git/git_repositories/master" >.git
+{% endhighlight %}
+
+Finally, checkout some files
+{% highlight shell %}
+$ git checkout a/README
+
+{% endhighlight %}
+
+ checkout
