@@ -25,18 +25,18 @@ Normaly you would do a git init in the desired folder. But this leads to a subfo
 If ypu want to place the repository in a diferrent place, use the following steps
 
 ## create common place for repositories
-{% highlight bash %}
+{% highlight shell %}
 GITREPO=/global_place_of_git_repositories
 {% endhighlight %}
 
 ## set vars for project and git folders
-{% highlight bash %}
+{% highlight shell %}
 PROJECT=$1
 GITHOME="$GITREPO/$PROJECT"
 {% endhighlight %}
 
 ## create folders
-{% highlight bash %}
+{% highlight shell %}
 mkdir -p "$GITHOME"
 cd "$PROJECT"
 git --git-dir $GITHOME --work-tree=. init && echo "gitdir: $GITHOME" > .git
@@ -44,7 +44,7 @@ git --git-dir $GITHOME --work-tree=. init && echo "gitdir: $GITHOME" > .git
 
 
 ## Sample Session
-{% highlight bash %}
+{% highlight shell %}
 $ GITREPO=~/tmp/git/git_repositories
 $ PROJECT=demo
 $ GITHOME="$GITREPO/$PROJECT"
