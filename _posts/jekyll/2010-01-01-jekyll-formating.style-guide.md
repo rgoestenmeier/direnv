@@ -24,7 +24,7 @@ header:
 ~~~
 
 ## Formating with highlight  and line numbers in a table
-{% highlight %}
+{% highlight shell %}
 $ HERE=${0%/*}
 $ SELF=${0##*/}
 {% endhighlight %}
