@@ -3,7 +3,7 @@
 ------------------------------------------------------------------- */
 
 td.linenos         {
-    background-color: $white;
+    background-color: #red;
 }
 
 div.linenodiv pre,
@@ -18,8 +18,8 @@ td.code {
 table.highlighttable {
     width:          100%;
 
-    tr:nth-child(even)  {   background:  $grey-1   }
-    tr:nth-child(odd)   {   background:  $white    }
+    tr:nth-child(even)  {   background:  $white		}
+    tr:nth-child(odd)   {   background:  $white		}
 
     td.linenos {
         width:      20px;
@@ -27,7 +27,10 @@ table.highlighttable {
 }
 
 .highlight {
-    background: $white;
+    background: #red;
+    
+    .pre	{	background: #red					} 
+    
     .c     { color: #998; font-style: italic } // Comment
     .err   { color: #a61717; background-color: #e3d2d2 } // Error
     .k     { font-weight: bold } // Keyword
