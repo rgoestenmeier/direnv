@@ -23,6 +23,7 @@ author: r14r
 
 # Snippets
 
+{% highlight bash linenos=table %}
 #---------------------------------------------------------------------------------------------------
 #
 #---------------------------------------------------------------------------------------------------
@@ -31,4 +32,7 @@ function STEP   {
     printf "%2d: %s\n" $STEP "$*"
     ((STEP=$STEP+1))
 }
+{% endhighlight %}
 
+{% highlight bash linenos=table %}
+{% endhighlight %}
