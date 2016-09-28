@@ -1,9 +1,8 @@
 ---
 layout: post-fullwidth
 
-subheadline: Bash - TEST
-title: 'TEST'
-teaser: 'TEST'
+subheadline: Bash - Snippets
+title: 'Bash Snippets'
 
 header:
   image: header/12.jpg
@@ -22,4 +21,14 @@ author: r14r
 {:toc}
 </div></div><div class="medium-8 medium-pull-4 columns" markdown="1">
 
-# TEST
+# Snippets
+
+#---------------------------------------------------------------------------------------------------
+#
+#---------------------------------------------------------------------------------------------------
+STEP=1
+function STEP   {
+    printf "%2d: %s\n" $STEP "$*"
+    ((STEP=$STEP+1))
+}
+
