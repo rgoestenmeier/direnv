@@ -1,0 +1,89 @@
+#!/bin/bash
+
+
+#------------------------------------------------------------------------------------------
+DIRENV_ROOT=/CLOUD/Development.DirEnv
+DIRENV_HOME=$PWD/.env
+
+DIRENV_ENVRC_MASTER=$DIRENV_ROOT/envrc.master
+
+#------------------------------------------------------------------------------------------
+do_get_version()
+{
+	curl -s http://nodejs.org/dist/index.tab | awk '/^v[0-9]/{ print $1 }'
+}
+
+#------------------------------------------------------------------------------------------
+do_install(){
+	NODE_VERSION=$1
+
+	mkdir -p $DIRENV_HOME/node-v8.9.4
+}
+
+do_init()
+{
+	TYPE="$1"
+
+	_ENVRC=$DIRENV_ENVRC_MASTER
+
+	[[ -n "$1"  ]] && _ENVRC="${_ENVRC}.$1"
+	cp $.ENVRC .envrc
+}
+
+#------------------------------------------------------------------------------------------
+	VERBOSE=false
+	DEBUG=false
+
+#------------------------------------------------------------------------------------------
+S_OPTS="vdm:"
+L_OPTS="verbose,debug,versios,install:,init:"
+
+OPTS=$(getopt -o $S_OPTS --long L_OPTS -- "$@")
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+eval set -- "$OPTS"
+
+set -x
+
+while true; do
+	case "$1" in
+		-v | --verbose)			VERBOSE=true;				;;
+		-d | --debug)			DEBUGLEVEL="$2";	shift		;;
+		-V | --versions)		MODE=GETVERSIONS			;;
+		-- ) 							shift; break	;;
+		* ) break ;;
+	esac
+
+	shift
+done
+
+exit
+
+if [[ "$1" == "--check" ]]; then
+	CMD=echo; shift
+else
+	CMD=
+fi
+
+VERSION=${1:-MISSING}
+
+RUN()
+{
+	echo "$*"
+	$*
+}
+
+
+if [[ "$VERSION" == "MISSING" ]]; then
+	echo get latest version
+	VERSION=$(nvm ls-remote|tail -1)
+fi
+
+RUN nvm install $VERSION
+
+RUN npm config set prefix $NVM_DIR/versions/node/$VERSION
+
+RUN nvm alias latest  $VERSION
+RUN nvm alias default $VERSION
+
+
+

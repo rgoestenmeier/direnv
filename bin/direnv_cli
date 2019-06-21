@@ -1,0 +1,192 @@
+#!/bin/bash
+#vim: tabstop=4:
+
+#------------------------------------------------------------------------------------------
+	DIRENV_ROOT=/CLOUD/Development.DirEnv
+	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
+
+	DIRENV_HOME=$PWD/.env
+
+#------------------------------------------------------------------------------------------
+DEBUG() {
+	local _LEVEL=$1;	shift;
+	local _LINE="$*";	shift;
+	
+	printf "DBG: %s\n" "$_LINE"
+}
+	
+HELP() {
+	echo $L_OPTS
+	exit
+}
+
+#------------------------------------------------------------------------------------------
+STEP=0
+LOG() {
+	local _LINE="$1"; shift
+	local _MODE="${1:-RUN}"
+
+	[[ $_MODE == INIT ]] && STEP=0
+
+	(( STEP=$STEP + 1 ))
+
+	printf "%3d: %s\n" "$STEP" "$_LINE"
+}
+
+
+#------------------------------------------------------------------------------------------
+DO_GET_VERSIONS() {
+	local _VERSION="$1"
+	if [[ "$_VERSION" == "LATEST" ]]; then
+		_FILTER="sed -n 2p"
+	else
+		_FILTER="sed -n 2,10p"
+	fi
+
+	curl -s http://nodejs.org/dist/index.tab | sed '1,$s/^v//' |  awk '{ print $1 }' | $_FILTER
+}
+
+#------------------------------------------------------------------------------------------
+DO_INSTALL_DEFAULTS() {
+	local _VERSION=$1; shift
+
+	local _FOLDER=$DIRENV_HOME/node/$_VERSION
+	local _CONFIG=.envrc.config
+
+	PATH=$_FOLDER/bin:$PATH
+
+	if [[ !  -f $_CONFIG ]]; then
+		LOG "No defaults file: $_CONFIG"
+		exit
+	fi
+
+	cat $_CONFIG | cut -d= -f2 | while read _LINE
+	do
+		LOG "npm -g install $_LINE"
+		npm -g install $_LINE
+	done
+}
+
+#------------------------------------------------------------------------------------------
+DO_INSTALL_PYTHON() {
+	local _FOLDER=$DIRENV_HOME/node/$_VERSION
+
+	python3 -m venv $_FOLDER/python
+	. $_FOLDER/python/bin/activate
+	pip install --upgrade pip
+
+}
+
+#------------------------------------------------------------------------------------------
+DO_INSTALL_NODE() {
+	local _VERSION=$1
+	local _LINK=http://nodejs.org/dist/${_VERSION}/node-${_VERSION}-darwin-x64.tar.gz
+
+	local _FOLDER=$DIRENV_HOME/node/$_VERSION
+	local _TARFILE=$(basename "$_LINK")
+	local _TARPATH=$DIRENV_ROOT/cache/$_TARFILE
+
+	if [[ -f "$_TARPATH" ]]; then 
+		LOG "Use cached NodeJS archiv for version $_VERSION"
+	else
+		LOG "Download NodeJS archiv for version $_VERSION"
+		curl -fsSL "$_LINK" -o "$_TARPATH"
+	fi
+
+	LOG "Create destination folder $_FOLDER"
+	rm -rf   "$_FOLDER"
+	mkdir -p "$_FOLDER"
+
+	LOG "Unpack NodeJS archiv"
+	cat "$_TARPATH" | tar xz --strip 1 -C "$_FOLDER"
+
+	if [[ $OPT_WITH_DEFAULTS = "YES" ]]; then
+		LOG "Install defaults"
+		DO_INSTALL_DEFAULTS $_VERSION
+	fi
+
+}
+
+DO_INIT() {
+	local _TYPE="$1"
+
+	local _EXT
+	if [[ -n "$_TYPE"  ]]; then
+		_EXT="${_TYPE}"
+	else
+		_EXT="master"
+	fi
+
+
+	LOG "Install ${_EXT}.envrc"
+	cp $DIRENV_TEMPLATES/${_EXT}.envrc  .envrc
+
+	LOG "Install ${_EXT}.config"
+	cp $DIRENV_TEMPLATES/${_EXT}.config .envrc.config
+}
+
+#------------------------------------------------------------------------------------------
+	VERBOSE=false
+	DEBUG=false
+
+	OPT_YSN_LATEST=NO
+	OPT_INSTALL_TYP=MISSING
+	OPT_VERSION=MISSING
+	OPT_WITH_DEFAULTS=NO
+
+#------------------------------------------------------------------------------------------
+	CMD_GETOPT=/usr/local/opt/gnu-getopt/bin/getopt
+
+	S_OPTS="vdm:"
+	L_OPTS="verbose,debug,help,version,get-versions,list,latest,install:,install-defaults,with-defaults,init:"
+
+	OPTS=$($CMD_GETOPT --options "$S_OPTS"--longoptions "$L_OPTS"	-- "$@")
+
+	eval set $OPTS
+	shift
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-v | --verbose)		VERBOSE=true;					;;
+			-d | --debug)		DEBUGLEVEL="$2";		shift		;;
+			-h | --help)		HELP;				exit		;;
+	
+			--list)			OPT_MODE=list					;;
+			--get-versions)		OPT_MODE=list					;;
+			--latest)		OPT_YSN_LATEST=YES				;;
+	
+			--init)			OPT_TYPE="$2";			shift
+						OPT_MODE=init					;;
+	
+			--install)		OPT_MODE="install/$2";		shift		;;
+			--version)		OPT_VERSION="$2";		shift		;;
+			--install-defaults)	OPT_MODE=install_defaults			;;
+			--with-defaults)	OPT_WITH_DEFAULTS=YES				;;
+	
+			--)							shift; break	;;
+			* )						   	       break	;;
+		esac
+	
+		shift
+	done
+	
+#------------------------------------------------------------------------------------------
+	if [[ "$OPT_VERSION" = "" ]]; then
+		OPT_VERSION=MISSING
+	fi
+
+#------------------------------------------------------------------------------------------
+	if   [[ "$OPT_VERSION" == "latest"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
+	elif [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
+	elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
+	fi
+	#echo Using Version $OPT_VERSION
+
+#------------------------------------------------------------------------------------------
+	case $OPT_MODE in
+		init)			DO_INIT	            $OPT_TYPE		;;
+		install/node)		DO_INSTALL_NODE     $OPT_VERSION	;;
+		install/python)		DO_INSTALL_PYTHON               	;;
+		install_defaults)	DO_INSTALL_DEFAULTS $OPT_VERSION	;;
+		list)			DO_GET_VERSIONS				;;
+	esac

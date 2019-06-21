@@ -1,9 +1,0 @@
-{% comment %}
-*
-*
-*
-{% endcomment %}
-{% for entry in include %}
-{% if entry[0] == 'classes' %}{% continue %}{% endif %}
-<div class="alert-box {{ entry[0] }} radius {{ include.classes }}">{{ entry[1] | markdownify }}</div>
-{% endfor %}
