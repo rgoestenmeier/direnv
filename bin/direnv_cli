@@ -69,7 +69,7 @@ DO_INSTALL_DEFAULTS() {
 
 #------------------------------------------------------------------------------------------
 DO_INSTALL_PYTHON() {
-	local _FOLDER=$DIRENV_HOME/node/$_VERSION
+	local _FOLDER=$DIRENV_HOME
 
 	python3 -m venv $_FOLDER/python
 	. $_FOLDER/python/bin/activate
