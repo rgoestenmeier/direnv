@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/local/bin/bash
 #vim: tabstop=4:
 
 #------------------------------------------------------------------------------------------
@@ -37,13 +37,18 @@ LOG() {
 #------------------------------------------------------------------------------------------
 DO_GET_VERSIONS() {
 	local _VERSION="$1"
-	if [[ "$_VERSION" == "LATEST" ]]; then
-		_FILTER="sed -n 2p"
-	else
-		_FILTER="sed -n 2,10p"
-	fi
 
-	curl -s http://nodejs.org/dist/index.tab | sed '1,$s/^v//' |  awk '{ print $1 }' | $_FILTER
+	if [[ "$_VERSION" == "LTS" ]]; then
+		cat tab | grep -v '^version' | sed '1,$s/^v//' |  awk '$10 != "-" { print $1 }'|head -1
+	else
+		if [[ "$_VERSION" == "LATEST" ]]; then
+			_FILTER="sed -n 2p"
+		else
+			_FILTER="sed -n 2,10p"
+		fi
+	
+		curl -s http://nodejs.org/dist/index.tab | sed '1,$s/^v//' |  awk '{ print $1 }' | $_FILTER
+	fi
 }
 
 #------------------------------------------------------------------------------------------
@@ -171,22 +176,26 @@ DO_INIT() {
 	done
 	
 #------------------------------------------------------------------------------------------
-	if [[ "$OPT_VERSION" = "" ]]; then
-		OPT_VERSION=MISSING
-	fi
+	[[ "$OPT_VERSION" = "" ]] && OPT_VERSION=MISSING
+	OPT_VERSION=${OPT_VERSION^^}
 
 #------------------------------------------------------------------------------------------
-	if   [[ "$OPT_VERSION" == "latest"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
-	elif [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
+	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
+	elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
+	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
 	elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
 	fi
 	#echo Using Version $OPT_VERSION
+
 
 #------------------------------------------------------------------------------------------
 	case $OPT_MODE in
 		init)			DO_INIT	            $OPT_TYPE		;;
 		install/node)		DO_INSTALL_NODE     $OPT_VERSION	;;
+		install/nodejs)		DO_INSTALL_NODE     $OPT_VERSION	;;
 		install/python)		DO_INSTALL_PYTHON               	;;
 		install_defaults)	DO_INSTALL_DEFAULTS $OPT_VERSION	;;
 		list)			DO_GET_VERSIONS				;;
 	esac
+
+
