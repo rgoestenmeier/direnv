@@ -39,7 +39,7 @@ DO_GET_VERSIONS() {
 	local _VERSION="$1"
 
 	if [[ "$_VERSION" == "LTS" ]]; then
-		cat tab | grep -v '^version' | sed '1,$s/^v//' |  awk '$10 != "-" { print $1 }'|head -1
+		curl -s http://nodejs.org/dist/index.tab | grep -v '^version' | sed '1,$s/^v//' |  awk '$10 != "-" { print $1 }'|head -1
 	else
 		if [[ "$_VERSION" == "LATEST" ]]; then
 			_FILTER="sed -n 2p"
@@ -178,6 +178,7 @@ DO_INIT() {
 #------------------------------------------------------------------------------------------
 	[[ "$OPT_VERSION" = "" ]] && OPT_VERSION=MISSING
 	OPT_VERSION=${OPT_VERSION^^}
+	echo Using Version $OPT_VERSION
 
 #------------------------------------------------------------------------------------------
 	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
@@ -185,7 +186,7 @@ DO_INIT() {
 	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
 	elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
 	fi
-	#echo Using Version $OPT_VERSION
+	echo Using Version $OPT_VERSION
 
 
 #------------------------------------------------------------------------------------------
