@@ -95,6 +95,15 @@ DO_GET_VERSIONS() {
 }
 
 #------------------------------------------------------------------------------------------
+DO_SELF_UPDATE() {
+	if [[ -d "$DIRENV_ROOT/.git" ]]; then
+		cd "$DIRENV_ROOT/.git"
+		git pull
+		exit
+	fi
+}
+
+#------------------------------------------------------------------------------------------
 DO_CHECK_INSTALL() {
 	if [[ ! -n "$DIRENV_HOME" ]]; then
 		printf "ERROR: direnv not setup correct. Missing DIRENV_HOME"
@@ -271,7 +280,7 @@ DO_INIT() {
 
 	S_OPTS="vdm:"
 	L_OPTS="verbose,debug,help,version, info"
-	L_OPTS="$L_OPTS,list,install:,install-version:,install-defaults,with-defaults,init:"
+	L_OPTS="$L_OPTS,list,update,install:,install-version:,install-defaults,with-defaults,init:"
 
 	OPTS=$($CMD_GETOPT --options "$S_OPTS"--longoptions "$L_OPTS"	-- "$@")
 
@@ -286,6 +295,8 @@ DO_INIT() {
 			--help)				OPT_YSN_HELP=YES									;;
 			--version)			OPT_YSN_VERSION=YES									;;
 			--info)				OPT_YSN_INFO=YES									;;
+
+			--update)			OPT_MODE=update										;;
 
 			--list)				OPT_MODE=list										;;
 			--init)				OPT_MODE=init;		OPT_TYPE="$2";		shift		;;
@@ -307,12 +318,15 @@ DO_INIT() {
 	[[ "$OPT_VERSION" = "" ]] && OPT_VERSION=MISSING
 	OPT_VERSION=${OPT_VERSION^^}
 
-
-
 #------------------------------------------------------------------------------------------
 	if [[ $OPT_MODE == install ]]; then
 		OPT_MODE=$OPT_MODE/$OPT_TYPE
 	fi
+
+	[[ $OPT_YSN_HELP    == YES ]] && DO_HELP
+	[[ $OPT_YSN_VERSION == YES ]] && DO_VERSION
+	[[ $OPT_YSN_INFO    == YES ]] && DO_INFO
+
 
 	if [[ $OPT_TYPE == node ]]; then
 		if   [[ "$OPT_VERSION" == "MISSING" && "$OPT_YSN_VERSION" ]]; then
@@ -333,26 +347,23 @@ DO_INIT() {
 	#echo "OPT_TYPE        = $OPT_TYPE"
 	#echo "OPT_VERSION     = $OPT_VERSION"
 
-	[[ $OPT_YSN_HELP    == YES ]] && DO_HELP
-	[[ $OPT_YSN_VERSION == YES ]] && DO_VERSION
-	[[ $OPT_YSN_INFO    == YES ]] && DO_INFO
-
 	case $OPT_MODE in
-		init)			DO_INIT			$OPT_TYPE		;;
+		init)				DO_INIT			$OPT_TYPE				;;
+		update)				DO_SELF_UPDATE							;;
 
-		version)		DO_VERSION					;;
-		help)			DO_HELP						;;
+		version)			DO_VERSION								;;
+		help)				DO_HELP									;;
 
 		install/node)		DO_INSTALL_NODE		$OPT_VERSION		;;
 		install/nodejs)		DO_INSTALL_NODE		$OPT_VERSION		;;
 		install/yarn)		DO_INSTALL_YARN		$OPT_VERSION		;;
 
-		install/angular)	DO_INSTALL_PROD_ANGULAR	$OPT_VERSION		;;
+		install/angular)	DO_INSTALL_PROD_ANGULAR	$OPT_VERSION	;;
 		install/ionic)		DO_INSTALL_IONIC	$OPT_VERSION		;;
 
-		install/python)		DO_INSTALL_PYTHON				;;
-		install_defaults)	DO_INSTALL_DEFAULTS 	$OPT_VERSION		;;
+		install/python)		DO_INSTALL_PYTHON						;;
+		install_defaults)	DO_INSTALL_DEFAULTS	$OPT_VERSION		;;
 
-		list)			DO_GET_VERSIONS					;;
+		list)				DO_GET_VERSIONS							;;
 	esac
 
