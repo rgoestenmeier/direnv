@@ -138,3 +138,62 @@ Enabled   : yarn       -                     -
 Enabled   : python     3.7.4                 HERE/.env/python/bin/python
 Enabled   : ssh        SSH_AGENT_PID: 71625  r14r@via-internet.de
 ```
+
+## Switching environments
+
+```
+$ cd /tmp/env.python
+Enabled   : HERE                             /tmp/env.python
+Enabled   : node       -                     -
+Enabled   : npm        -                     -
+Enabled   : yarn       -                     -
+Enabled   : python     3.7.4                 HERE/.env/python/bin/python
+Enabled   : ssh        SSH_AGENT_PID: 71992  r14r@via-internet.de
+````
+
+```
+$ cd /tmp/env.node
+Enabled   : HERE                             /tmp/env.node
+Enabled   : node       12.9.0                HERE/.env/node/v12.9.0/bin/node
+Enabled   : npm        6.11.1                HERE/.env/node/v12.9.0/bin/npm
+Enabled   : yarn       -                     -
+Missing   : python
+Enabled   : ssh        SSH_AGENT_PID: 95612  r14r@via-internet.de
+```
+
+Notice the different SSH Agent PIDs. So, every environment has its own SSH Keys configured.
+
+## SSH Configuration
+
+I work with a lot of Github Repositories and for every repository, I created a ssh key and allow access via this ssh-key.
+
+![ssh keys](doc/github-ssh-keys.png)
+
+
+Within the direnv configuration, there is a file ```.envrc.ssh-user``` with the name of the github user. This name will be used in loading the ssh-agent with the corresponding keys.
+
+So, the content of ```.envrc.ssh-user``` is
+
+    demouser
+
+and the key to load will be
+
+    $HOME/.ssh/id_ras_demo-user
+
+The result is a correct ssh-agent configuration
+
+```
+$ cat .envrc.ssh-user
+demouser
+$ direnv reload
+Enabled   : HERE                             /tmp/env.node
+Enabled   : node       12.9.0                HERE/.env/node/v12.9.0/bin/node
+Enabled   : npm        6.11.1                HERE/.env/node/v12.9.0/bin/npm
+Enabled   : yarn       -                     -
+Missing   : python
+Enabled   : ssh        SSH_AGENT_PID: 95612  demouser@via-internet.de
+```
+
+After this, you only have to cloen your repository with the right ssh link:
+
+    git clone git@github.com:<user>/<repository>.git
