@@ -12,7 +12,7 @@
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
 	DIRENV_BASE=$PWD/.env
 
-	_DEPLOY_VERSION=1.2.6
+	_DEPLOY_VERSION=1.2.7
 
 #------------------------------------------------------------------------------------------
 DEBUG() {
@@ -31,6 +31,7 @@ DO_INFO() {
 	echo "DIRENV_ROOT      = $DIRENV_ROOT"
 	echo "DIRENV_TEMPLATES = $DIRENV_TEMPLATES"
 	echo "DIRENV_BASE      = $DIRENV_BASE"
+	echo "DIRENV_HOME      = $DIRENV_HOME"
 
 	exit
 }
@@ -107,7 +108,7 @@ DO_SELF_UPDATE() {
 #------------------------------------------------------------------------------------------
 DO_CHECK_INSTALL() {
 	if [[ ! -n "$DIRENV_HOME" ]]; then
-		printf "ERROR: direnv not setup correct. Missing DIRENV_HOME"
+		printf "ERROR: direnv not setup correct. Missing DIRENV_BASE\n"
 		exit
 	fi
 }
@@ -137,12 +138,17 @@ DO_INSTALL_DEFAULTS() {
 
 #------------------------------------------------------------------------------------------
 DO_INSTALL_PYTHON() {
-	local _FOLDER=$DIRENV_BASE
+	local _FOLDER=$DIRENV_HOME
 
 	DO_CHECK_INSTALL
 
+	LOG "Create venv in $_FOLDER/python"
 	python3 -m venv $_FOLDER/python
+
+	LOG "Activate venv"
 	. $_FOLDER/python/bin/activate
+
+	LOG "Upgrade pip"
 	pip install --upgrade pip
 }
 
@@ -151,7 +157,9 @@ DO_INSTALL_NODE() {
 	local _VERSION=$1
 	local _LINK=http://nodejs.org/dist/${_VERSION}/node-${_VERSION}-darwin-x64.tar.gz
 
-	local _FOLDER=$DIRENV_BASE/node/$_VERSION
+	DO_CHECK_INSTALL
+
+	local _FOLDER=$DIRENV_HOME/node/$_VERSION
 	local _TARFILE=$(basename "$_LINK")
 	local _TARFLDR=$DIRENV_ROOT/cache
 	local _TARPATH=$_TARFLDR/$_TARFILE
@@ -173,6 +181,7 @@ DO_INSTALL_NODE() {
 	LOG "Unpack NodeJS archiv"
 	cat "$_TARPATH" | tar xz --strip 1 -C "$_FOLDER"
 
+	LOG "Add PATH $_FOLDER/bin"
 	PATH=$_FOLDER/bin:$PATH
 
 	LOG "Update NPM: $_FOLDER/bin/npm"
@@ -187,7 +196,7 @@ DO_INSTALL_NODE() {
 #------------------------------------------------------------------------------------------
 DO_INSTALL_YARN() {
 	local _VERSION=$1
-	local _FOLDER=$DIRENV_BASE/yarn
+	local _FOLDER=$DIRENV_HOME/yarn
 
 	DO_CHECK_INSTALL
 
@@ -196,6 +205,14 @@ DO_INSTALL_YARN() {
 
 	LOG "Set Yarn Cache folder to $_FOLDER"
 	yarn --silent config set global-folder $_FOLDER
+}
+
+#------------------------------------------------------------------------------------------
+DO_INSTALL_ANGULAR() {
+	local _VERSION=$1
+	local _FOLDER=$DIRENV_HOME/yarn
+
+	DO_CHECK_INSTALL
 
 	LOG "Install Angular CLI with yarn"
 	yarn --silent global add @angular/cli
@@ -206,10 +223,11 @@ DO_INSTALL_YARN() {
 	LOG "Using ng from $(which ng)"
 	ng config -g cli.packageManager yarn
 }
+
 #------------------------------------------------------------------------------------------
 DO_INSTALL_IONIC() {
 	local _VERSION=$1
-	local _FOLDER=$DIRENV_BASE/yarn
+	local _FOLDER=$DIRENV_HOME/yarn
 
 	DO_CHECK_INSTALL
 
@@ -227,6 +245,7 @@ DO_INSTALL_PROD_IONIC() {
 	DO_INSTALL_PYTHON	$_VERSION
 	DO_INSTALL_NODE		$_VERSION
 	DO_INSTALL_YARN		$_VERSION
+	DO_INSTALL_IONIC	$_VERSION
 
 	DO_INSTALL_DEFAULTS
 }
@@ -239,6 +258,7 @@ DO_INSTALL_PROD_ANGULAR() {
 	DO_INSTALL_PYTHON	$_VERSION
 	DO_INSTALL_NODE		$_VERSION
 	DO_INSTALL_YARN		$_VERSION
+	DO_INSTALL_ANGULAR 	$_VERSION
 
 	DO_INSTALL_DEFAULTS
 }
@@ -332,15 +352,15 @@ DO_INIT() {
 
 
 	if [[ $OPT_TYPE == node ]]; then
-		if   [[ "$OPT_VERSION" == "MISSING" && "$OPT_YSN_VERSION" ]]; then
+		if   [[ "$OPT_VERSION" == "MISSING" && "$OPT_YSN_VERSION" == YES ]]; then
 			DO_HELP "Missing Version. Use Parameter --install-version instead of --version"
 		fi
+	fi
 
-		if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
-		elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
-		elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
-		elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
-		fi
+	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
+	elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
+	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
+	elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
 	fi
 
 	#echo "VERSION         = $_DEPLOY_VERSION"
@@ -362,7 +382,7 @@ DO_INIT() {
 		install/yarn)		DO_INSTALL_YARN		$OPT_VERSION		;;
 
 		install/angular)	DO_INSTALL_PROD_ANGULAR	$OPT_VERSION	;;
-		install/ionic)		DO_INSTALL_IONIC	$OPT_VERSION		;;
+		install/ionic)		DO_INSTALL_PROD_IONIC	$OPT_VERSION		;;
 
 		install/python)		DO_INSTALL_PYTHON						;;
 		install_defaults)	DO_INSTALL_DEFAULTS	$OPT_VERSION		;;
