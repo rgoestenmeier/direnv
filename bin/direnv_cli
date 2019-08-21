@@ -97,7 +97,7 @@ DO_GET_VERSIONS() {
 #------------------------------------------------------------------------------------------
 DO_SELF_UPDATE() {
 	if [[ -d "$DIRENV_ROOT/.git" ]]; then
-		cd "$DIRENV_ROOT/.git"
+		cd "$DIRENV_ROOT"
 		git pull
 		exit
 	fi
