@@ -12,7 +12,7 @@
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
 	DIRENV_BASE=$PWD/.env
 
-	_DEPLOY_VERSION=1.2.5
+	_DEPLOY_VERSION=1.2.6
 
 #------------------------------------------------------------------------------------------
 DEBUG() {
@@ -153,7 +153,8 @@ DO_INSTALL_NODE() {
 
 	local _FOLDER=$DIRENV_BASE/node/$_VERSION
 	local _TARFILE=$(basename "$_LINK")
-	local _TARPATH=$DIRENV_ROOT/cache/$_TARFILE
+	local _TARFLDR=$DIRENV_ROOT/cache
+	local _TARPATH=$_TARFLDR/$_TARFILE
 
 	DO_CHECK_INSTALL
 
@@ -161,6 +162,7 @@ DO_INSTALL_NODE() {
 		LOG "Use cached NodeJS archiv for version $_VERSION"
 	else
 		LOG "Download NodeJS archiv for version $_VERSION"
+		mkdir -p "$_TARFLDR"
 		curl -fsSL "$_LINK" -o "$_TARPATH"
 	fi
 
