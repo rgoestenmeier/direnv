@@ -12,7 +12,7 @@
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
 	DIRENV_BASE=$PWD/.env
 
-	_DEPLOY_VERSION=1.2.3
+	_DEPLOY_VERSION=1.2.5
 
 #------------------------------------------------------------------------------------------
 DEBUG() {
