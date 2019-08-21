@@ -12,7 +12,7 @@
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
 	DIRENV_BASE=$PWD/.env
 
-	VERSION=1.2.2
+	_DEPLOY_VERSION=1.2.3
 
 #------------------------------------------------------------------------------------------
 DEBUG() {
@@ -24,7 +24,7 @@ DEBUG() {
 	
 DO_INFO() {
 	echo "SELF             = $SELF"
-	echo "VERSION          = $VERSION"
+	echo "VERSION          = $_DEPLOY_VERSION"
 	echo "THIS             = $THIS"
 	echo "HERE             = $HERE"
 	echo "DIRENV_ROOT      = $DIRENV_ROOT"
@@ -59,7 +59,7 @@ DO_HELP() {
 
 #------------------------------------------------------------------------------------------
 DO_VERSION() {
-	echo "$SELF: Version $VERSION"
+	echo "$SELF: Version $_DEPLOY_VERSION"
 	exit 0
 }
 
@@ -340,7 +340,7 @@ DO_INIT() {
 		fi
 	fi
 
-	#echo "VERSION         = $VERSION"
+	#echo "VERSION         = $_DEPLOY_VERSION"
 	#echo "OPT_YSN_HELP    = $OPT_YSN_HELP"
 	#echo "OPT_YSN_VERSION = $OPT_YSN_VERSION"
 	#echo "OPT_MODE        = $OPT_MODE"
