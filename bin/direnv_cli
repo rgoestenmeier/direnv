@@ -174,7 +174,7 @@ DO_INSTALL_NODE() {
 	PATH=$_FOLDER/bin:$PATH
 
 	LOG "Update NPM: $_FOLDER/bin/npm"
-	npm --silent -g install npm
+	$_FOLDER/bin/npm --silent -g install npm
 
 	if [[ $OPT_WITH_DEFAULTS = "YES" ]]; then
 		LOG "Install defaults"
