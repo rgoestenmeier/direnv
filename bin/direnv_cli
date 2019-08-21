@@ -2,14 +2,17 @@
 #vim: tabstop=4:
 
 #------------------------------------------------------------------------------------------
-        HERE="$(cd $(dirname "$0"); pwd)"
-        SELF="$(basename "$0")"
+	THIS="$0"
+	[[ -h "$THIS" ]] && THIS="$(readlink "$THIS")"
 
-	DIRENV_ROOT=/CLOUD/Development.DirEnv
+	HERE="$(cd $(dirname "$THIS"); pwd)"
+	SELF="$(basename "$0")"
+
+	DIRENV_ROOT="$(cd "$HERE"/..; pwd)"
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
 	DIRENV_BASE=$PWD/.env
 
-	VERSION=1.2.1
+	VERSION=1.2.2
 
 #------------------------------------------------------------------------------------------
 DEBUG() {
@@ -19,6 +22,18 @@ DEBUG() {
 	printf "DBG: %s\n" "$_LINE"
 }
 	
+DO_INFO() {
+	echo "SELF             = $SELF"
+	echo "VERSION          = $VERSION"
+	echo "THIS             = $THIS"
+	echo "HERE             = $HERE"
+	echo "DIRENV_ROOT      = $DIRENV_ROOT"
+	echo "DIRENV_TEMPLATES = $DIRENV_TEMPLATES"
+	echo "DIRENV_BASE      = $DIRENV_BASE"
+
+	exit
+}
+
 DO_HELP() {
 	echo "$*"
 	echo " "
@@ -243,6 +258,7 @@ DO_INIT() {
 	DEBUG=false
 
 	OPT_YSN_VERSION=NO
+	OPT_YSN_INFO=NO
 	OPT_YSN_HELP=NO
 
 	OPT_VERSION_USE_LATEST=NO
@@ -254,7 +270,7 @@ DO_INIT() {
 	CMD_GETOPT=/usr/local/opt/gnu-getopt/bin/getopt
 
 	S_OPTS="vdm:"
-	L_OPTS="verbose,debug,help,version"
+	L_OPTS="verbose,debug,help,version, info"
 	L_OPTS="$L_OPTS,list,install:,install-version:,install-defaults,with-defaults,init:"
 
 	OPTS=$($CMD_GETOPT --options "$S_OPTS"--longoptions "$L_OPTS"	-- "$@")
@@ -264,22 +280,24 @@ DO_INIT() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-v | --verbose)		VERBOSE=true;							;;
-			-d | --debug)		DEBUGLEVEL="$2";				shift		;;
-			-h | --help)		OPT_YSN_HELP=YES						;;
-	
-			--version)		OPT_YSN_VERSION=YES						;;
-			--list)			OPT_MODE=list							;;
-			--init)			OPT_MODE=init;		OPT_TYPE="$2";		shift		;;
-			--install)		OPT_MODE=install;	OPT_TYPE="$2";		shift		;;
-	
-			--install-version)				OPT_VERSION="$2";	shift		;;
-			--with-defaults)	OPT_WITH_DEFAULTS=YES						;;
-	
-			--install-defaults)	OPT_MODE=install_defaults					;;
+			-v | --verbose)		VERBOSE=true;										;;
+			-d | --debug)		DEBUGLEVEL="$2";					shift			;;
 
-			--)									shift; break	;;
-			* )								   	       break	;;
+			--help)				OPT_YSN_HELP=YES									;;
+			--version)			OPT_YSN_VERSION=YES									;;
+			--info)				OPT_YSN_INFO=YES									;;
+
+			--list)				OPT_MODE=list										;;
+			--init)				OPT_MODE=init;		OPT_TYPE="$2";		shift		;;
+			--install)			OPT_MODE=install;	OPT_TYPE="$2";		shift		;;
+	
+			--install-version)						OPT_VERSION="$2";	shift		;;
+			--with-defaults)	OPT_WITH_DEFAULTS=YES								;;
+	
+			--install-defaults)	OPT_MODE=install_defaults							;;
+
+			--)														shift; break	;;
+			* )														       break	;;
 		esac
 	
 		shift
@@ -317,6 +335,7 @@ DO_INIT() {
 
 	[[ $OPT_YSN_HELP    == YES ]] && DO_HELP
 	[[ $OPT_YSN_VERSION == YES ]] && DO_VERSION
+	[[ $OPT_YSN_INFO    == YES ]] && DO_INFO
 
 	case $OPT_MODE in
 		init)			DO_INIT			$OPT_TYPE		;;
