@@ -2,10 +2,14 @@
 #vim: tabstop=4:
 
 #------------------------------------------------------------------------------------------
+        HERE="$(cd $(dirname "$0"); pwd)"
+        SELF="$(basename "$0")"
+
 	DIRENV_ROOT=/CLOUD/Development.DirEnv
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
+	DIRENV_BASE=$PWD/.env
 
-	DIRENV_HOME=$PWD/.env
+	VERSION=1.2.1
 
 #------------------------------------------------------------------------------------------
 DEBUG() {
@@ -15,9 +19,33 @@ DEBUG() {
 	printf "DBG: %s\n" "$_LINE"
 }
 	
-HELP() {
-	echo $L_OPTS
+DO_HELP() {
+	echo "$*"
+	echo " "
+
+	echo "$SELF:"
+
+	echo $L_OPTS | tr ',' '\n' | while read _LINE
+	do
+		_OPT="${_LINE##:*}"
+		_PAR="${_LINE%%*:}"
+
+		if [[ ! -n $_PAR ]]; then
+			_PAR="<parameter>"
+		else
+			_PAR=""
+		fi
+
+		printf "%10s %-20s %s\n" " " "$_OPT" "$_PAR"
+	done
+
 	exit
+}
+
+#------------------------------------------------------------------------------------------
+DO_VERSION() {
+	echo "$SELF: Version $VERSION"
+	exit 0
 }
 
 #------------------------------------------------------------------------------------------
@@ -52,10 +80,20 @@ DO_GET_VERSIONS() {
 }
 
 #------------------------------------------------------------------------------------------
+DO_CHECK_INSTALL() {
+	if [[ ! -n "$DIRENV_HOME" ]]; then
+		printf "ERROR: direnv not setup correct. Missing DIRENV_HOME"
+		exit
+	fi
+}
+
+#------------------------------------------------------------------------------------------
 DO_INSTALL_DEFAULTS() {
 	local _VERSION=$1; shift
 
-	local _FOLDER=$DIRENV_HOME/node/$_VERSION
+	DO_CHECK_INSTALL
+
+	local _FOLDER=$DIRENV_BASE/node/$_VERSION
 	local _CONFIG=.envrc.config
 
 	PATH=$_FOLDER/bin:$PATH
@@ -74,12 +112,13 @@ DO_INSTALL_DEFAULTS() {
 
 #------------------------------------------------------------------------------------------
 DO_INSTALL_PYTHON() {
-	local _FOLDER=$DIRENV_HOME
+	local _FOLDER=$DIRENV_BASE
+
+	DO_CHECK_INSTALL
 
 	python3 -m venv $_FOLDER/python
 	. $_FOLDER/python/bin/activate
 	pip install --upgrade pip
-
 }
 
 #------------------------------------------------------------------------------------------
@@ -87,29 +126,94 @@ DO_INSTALL_NODE() {
 	local _VERSION=$1
 	local _LINK=http://nodejs.org/dist/${_VERSION}/node-${_VERSION}-darwin-x64.tar.gz
 
-	local _FOLDER=$DIRENV_HOME/node/$_VERSION
+	local _FOLDER=$DIRENV_BASE/node/$_VERSION
 	local _TARFILE=$(basename "$_LINK")
 	local _TARPATH=$DIRENV_ROOT/cache/$_TARFILE
 
-	if [[ -f "$_TARPATH" ]]; then 
+	DO_CHECK_INSTALL
+
+	if [[ -f "$_TARPATH" ]]; then
 		LOG "Use cached NodeJS archiv for version $_VERSION"
 	else
 		LOG "Download NodeJS archiv for version $_VERSION"
 		curl -fsSL "$_LINK" -o "$_TARPATH"
 	fi
 
-	LOG "Create destination folder $_FOLDER"
+	LOG "Create $_FOLDER"
 	rm -rf   "$_FOLDER"
 	mkdir -p "$_FOLDER"
 
 	LOG "Unpack NodeJS archiv"
 	cat "$_TARPATH" | tar xz --strip 1 -C "$_FOLDER"
 
+	PATH=$_FOLDER/bin:$PATH
+
+	LOG "Update NPM: $_FOLDER/bin/npm"
+	npm --silent -g install npm
+
 	if [[ $OPT_WITH_DEFAULTS = "YES" ]]; then
 		LOG "Install defaults"
 		DO_INSTALL_DEFAULTS $_VERSION
 	fi
+}
 
+#------------------------------------------------------------------------------------------
+DO_INSTALL_YARN() {
+	local _VERSION=$1
+	local _FOLDER=$DIRENV_BASE/yarn
+
+	DO_CHECK_INSTALL
+
+	LOG "Install yarn"
+	npm --silent -g install yarn
+
+	LOG "Set Yarn Cache folder to $_FOLDER"
+	yarn --silent config set global-folder $_FOLDER
+
+	LOG "Install Angular CLI with yarn"
+	yarn --silent global add @angular/cli
+	rm /usr/local/bin/ng
+
+	PATH=$_FOLDER/node_modules/.bin:$PATH
+
+	LOG "Using ng from $(which ng)"
+	ng config -g cli.packageManager yarn
+}
+#------------------------------------------------------------------------------------------
+DO_INSTALL_IONIC() {
+	local _VERSION=$1
+	local _FOLDER=$DIRENV_BASE/yarn
+
+	DO_CHECK_INSTALL
+
+	LOG "Install yarn"
+	yarn --silent add  ionic
+
+	rm /usr/local/bin/ionic
+}
+
+DO_INSTALL_PROD_IONIC() {
+	local _VERSION=$1
+
+	DO_CHECK_INSTALL
+
+	DO_INSTALL_PYTHON	$_VERSION
+	DO_INSTALL_NODE		$_VERSION
+	DO_INSTALL_YARN		$_VERSION
+
+	DO_INSTALL_DEFAULTS
+}
+
+DO_INSTALL_PROD_ANGULAR() {
+	local _VERSION=$1
+
+	DO_CHECK_INSTALL
+
+	DO_INSTALL_PYTHON	$_VERSION
+	DO_INSTALL_NODE		$_VERSION
+	DO_INSTALL_YARN		$_VERSION
+
+	DO_INSTALL_DEFAULTS
 }
 
 DO_INIT() {
@@ -122,20 +226,27 @@ DO_INIT() {
 		_EXT="master"
 	fi
 
-
-	LOG "Install ${_EXT}.envrc"
+	LOG "Create ${_EXT}.envrc"
 	cp $DIRENV_TEMPLATES/${_EXT}.envrc  .envrc
 
-	LOG "Install ${_EXT}.config"
+	LOG "Create ${_EXT}.config"
 	cp $DIRENV_TEMPLATES/${_EXT}.config .envrc.config
+
+	if [[ ! -f ".envrc.ssh-user" ]]; then
+		LOG "Create ${_EXT}.ssh-user"
+		echo "r14r" >.envrc.ssh-user
+	fi
 }
 
 #------------------------------------------------------------------------------------------
 	VERBOSE=false
 	DEBUG=false
 
-	OPT_YSN_LATEST=NO
-	OPT_INSTALL_TYP=MISSING
+	OPT_YSN_VERSION=NO
+	OPT_YSN_HELP=NO
+
+	OPT_VERSION_USE_LATEST=NO
+
 	OPT_VERSION=MISSING
 	OPT_WITH_DEFAULTS=NO
 
@@ -143,7 +254,8 @@ DO_INIT() {
 	CMD_GETOPT=/usr/local/opt/gnu-getopt/bin/getopt
 
 	S_OPTS="vdm:"
-	L_OPTS="verbose,debug,help,version,get-versions,list,latest,install:,install-defaults,with-defaults,init:"
+	L_OPTS="verbose,debug,help,version"
+	L_OPTS="$L_OPTS,list,install:,install-version:,install-defaults,with-defaults,init:"
 
 	OPTS=$($CMD_GETOPT --options "$S_OPTS"--longoptions "$L_OPTS"	-- "$@")
 
@@ -152,51 +264,76 @@ DO_INIT() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-v | --verbose)		VERBOSE=true;					;;
-			-d | --debug)		DEBUGLEVEL="$2";		shift		;;
-			-h | --help)		HELP;				exit		;;
+			-v | --verbose)		VERBOSE=true;							;;
+			-d | --debug)		DEBUGLEVEL="$2";				shift		;;
+			-h | --help)		OPT_YSN_HELP=YES						;;
 	
-			--list)			OPT_MODE=list					;;
-			--get-versions)		OPT_MODE=list					;;
-			--latest)		OPT_YSN_LATEST=YES				;;
+			--version)		OPT_YSN_VERSION=YES						;;
+			--list)			OPT_MODE=list							;;
+			--init)			OPT_MODE=init;		OPT_TYPE="$2";		shift		;;
+			--install)		OPT_MODE=install;	OPT_TYPE="$2";		shift		;;
 	
-			--init)			OPT_TYPE="$2";			shift
-						OPT_MODE=init					;;
+			--install-version)				OPT_VERSION="$2";	shift		;;
+			--with-defaults)	OPT_WITH_DEFAULTS=YES						;;
 	
-			--install)		OPT_MODE="install/$2";		shift		;;
-			--version)		OPT_VERSION="$2";		shift		;;
-			--install-defaults)	OPT_MODE=install_defaults			;;
-			--with-defaults)	OPT_WITH_DEFAULTS=YES				;;
-	
-			--)							shift; break	;;
-			* )						   	       break	;;
+			--install-defaults)	OPT_MODE=install_defaults					;;
+
+			--)									shift; break	;;
+			* )								   	       break	;;
 		esac
 	
 		shift
 	done
-	
+
 #------------------------------------------------------------------------------------------
 	[[ "$OPT_VERSION" = "" ]] && OPT_VERSION=MISSING
 	OPT_VERSION=${OPT_VERSION^^}
-	echo Using Version $OPT_VERSION
+
+
 
 #------------------------------------------------------------------------------------------
-	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
-	elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
-	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
-	elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
+	if [[ $OPT_MODE == install ]]; then
+		OPT_MODE=$OPT_MODE/$OPT_TYPE
 	fi
-	echo Using Version $OPT_VERSION
 
+	if [[ $OPT_TYPE == node ]]; then
+		if   [[ "$OPT_VERSION" == "MISSING" && "$OPT_YSN_VERSION" ]]; then
+			DO_HELP "Missing Version. Use Parameter --install-version instead of --version"
+		fi
 
-#------------------------------------------------------------------------------------------
+		if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
+		elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
+		elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
+		elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
+		fi
+	fi
+
+	#echo "VERSION         = $VERSION"
+	#echo "OPT_YSN_HELP    = $OPT_YSN_HELP"
+	#echo "OPT_YSN_VERSION = $OPT_YSN_VERSION"
+	#echo "OPT_MODE        = $OPT_MODE"
+	#echo "OPT_TYPE        = $OPT_TYPE"
+	#echo "OPT_VERSION     = $OPT_VERSION"
+
+	[[ $OPT_YSN_HELP    == YES ]] && DO_HELP
+	[[ $OPT_YSN_VERSION == YES ]] && DO_VERSION
+
 	case $OPT_MODE in
-		init)			DO_INIT	            $OPT_TYPE		;;
-		install/node)		DO_INSTALL_NODE     $OPT_VERSION	;;
-		install/nodejs)		DO_INSTALL_NODE     $OPT_VERSION	;;
-		install/python)		DO_INSTALL_PYTHON               	;;
-		install_defaults)	DO_INSTALL_DEFAULTS $OPT_VERSION	;;
-		list)			DO_GET_VERSIONS				;;
-	esac
+		init)			DO_INIT			$OPT_TYPE		;;
 
+		version)		DO_VERSION					;;
+		help)			DO_HELP						;;
+
+		install/node)		DO_INSTALL_NODE		$OPT_VERSION		;;
+		install/nodejs)		DO_INSTALL_NODE		$OPT_VERSION		;;
+		install/yarn)		DO_INSTALL_YARN		$OPT_VERSION		;;
+
+		install/angular)	DO_INSTALL_PROD_ANGULAR	$OPT_VERSION		;;
+		install/ionic)		DO_INSTALL_IONIC	$OPT_VERSION		;;
+
+		install/python)		DO_INSTALL_PYTHON				;;
+		install_defaults)	DO_INSTALL_DEFAULTS 	$OPT_VERSION		;;
+
+		list)			DO_GET_VERSIONS					;;
+	esac
 

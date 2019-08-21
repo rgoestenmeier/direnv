@@ -1,5 +1,1 @@
-drafts
-_site
-
-.project
-.sass-cache/
+.DS_Store
