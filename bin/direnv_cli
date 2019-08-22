@@ -234,7 +234,7 @@ DO_INSTALL_IONIC() {
 	LOG "Install yarn"
 	yarn --silent add  ionic
 
-	rm /usr/local/bin/ionic
+	[[ -f /usr/local/bin/ionic ]] && rm /usr/local/bin/ionic
 }
 
 DO_INSTALL_PROD_IONIC() {
