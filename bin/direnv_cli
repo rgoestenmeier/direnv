@@ -12,7 +12,7 @@
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
 	DIRENV_BASE=$PWD/.env
 
-	_DEPLOY_VERSION=1.2.7
+	_DEPLOY_VERSION=1.3.0
 
 #------------------------------------------------------------------------------------------
 DEBUG() {
@@ -120,7 +120,7 @@ DO_INSTALL_DEFAULTS() {
 	DO_CHECK_INSTALL
 
 	local _FOLDER=$DIRENV_BASE/node/$_VERSION
-	local _CONFIG=.envrc.config
+	local _CONFIG=.env/.envrc.config
 
 	PATH=$_FOLDER/bin:$PATH
 
@@ -203,8 +203,11 @@ DO_INSTALL_YARN() {
 	LOG "Install yarn"
 	npm --silent -g install yarn
 
-	LOG "Set Yarn Cache folder to $_FOLDER"
-	yarn --silent config set global-folder $_FOLDER
+	LOG "Set Yarn Global Folder to $_FOLDER"
+	yarn --silent config set global-folder ${_FOLDER}
+
+	#LOG "Set Yarn Cache  Folder to $_FOLDER"
+	#yarn --silent config set cache-folder  ${_FOLDER}.cache
 }
 
 #------------------------------------------------------------------------------------------
@@ -273,15 +276,17 @@ DO_INIT() {
 		_EXT="master"
 	fi
 
+	mkdir -p .env
+
 	LOG "Create ${_EXT}.envrc"
 	cp $DIRENV_TEMPLATES/${_EXT}.envrc  .envrc
 
 	LOG "Create ${_EXT}.config"
-	cp $DIRENV_TEMPLATES/${_EXT}.config .envrc.config
+	cp $DIRENV_TEMPLATES/${_EXT}.config .env/.envrc.config
 
-	if [[ ! -f ".envrc.ssh-user" ]]; then
+	if [[ ! -f ".env/.envrc.ssh-user" ]]; then
 		LOG "Create ${_EXT}.ssh-user"
-		echo "r14r" >.envrc.ssh-user
+		echo "r14r" >.env/.envrc.ssh-user
 	fi
 }
 

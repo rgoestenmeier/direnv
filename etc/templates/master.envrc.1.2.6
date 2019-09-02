@@ -2,7 +2,7 @@
 	set -u
 
 #-------------------------------------------------------------------------------
-	_DEPLOY_VERSION=1.3.0
+	_DEPLOY_VERSION=1.2.6-01
 
 #-------------------------------------------------------------------------------
 	ARGV=$BASH_ARGV
@@ -10,15 +10,11 @@
 	HERE="$(cd $(dirname "$ARGV"); pwd)"
 	SELF="$(basename "$ARGV")"
 
+	export SSH_USR="$(basename "$HERE")"
+	export SSH_USR="$(< .envrc.ssh-user)"
+	export SSH_ENV="$HERE/.ssh-environment"
 
 	export DIRENV_HOME="$HERE/.env"
-
-	export SSH_USR="$(basename "$HERE")"
-	export SSH_ENV="$DIRENV_HOME/.ssh-environment"
-
-	export SSH_USR=""
-	[[ -f "$DIRENV_HOME/.envrc.ssh-user" ]] && export SSH_USR="$(< $DIRENV_HOME/.envrc.ssh-user)"
-
 
 #-------------------------------------------------------------------------------
 status()
@@ -33,10 +29,7 @@ status()
 
 #-------------------------------------------------------------------------------
 use_ssh_agent() {
-	_START=${#SSH_ENV}
-	_REL_PATH="${DIRENV_HOME:$_START}"
-
-	status  "Init" "SSH Agent"     ""							"$_REL_PATH"
+	status  "Init" "SSH Agent"     ""							"$SSH_ENV"
 	/usr/bin/ssh-agent | sed 's/^echo/#echo/' >"${SSH_ENV}"
 
 	chmod 600 "${SSH_ENV}"
@@ -88,12 +81,6 @@ use_yarn() {
 }
 
 #-------------------------------------------------------------------------------
-use_ionic() {
-	export _IONIC_PATH="$(show_path ionic)"
-	export _IONIC_VERSION="$(ionic --version 2>&-)"
-}
-
-#-------------------------------------------------------------------------------
 show_path()
 {
 	local _APP_PATH="$(which "$1")"
@@ -105,7 +92,7 @@ show_path()
 }
 
 #-------------------------------------------------------------------------------
-	status  "Enabled" "HERE" "$_DEPLOY_VERSION" "$HERE"
+	status  "Enabled" "HERE" "" "$HERE"
 
 	#-----------------------------------------------------------------------
 	export NODE_VERSIONS="$DIRENV_HOME/node"
@@ -137,10 +124,6 @@ show_path()
 	status  "Enabled" "yarn"		"$_YARN_VERSION"		"$_YARN_PATH"
 
 	#-----------------------------------------------------------------------
-	use_ionic
-	status  "Enabled" "ionic"		"$_IONIC_VERSION"		"$_IONIC_PATH"
-
-	#-----------------------------------------------------------------------
 #	use_flutter
 #	status  "Enabled" "flutter"		"$_FLUTTER_VERSION"		"$_FLUTTER_PATH"
 
@@ -156,4 +139,3 @@ show_path()
 	#-----------------------------------------------------------------------
 	use_ssh
 	status  "Enabled" "ssh"      "SSH_AGENT_PID: $SSH_AGENT_PID"			"$(ssh-add  -l | cut -d' ' -f3)"
-
