@@ -2,7 +2,7 @@
 # vim: tabstop=4:
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=1.3.1-03
+	_DEPLOY_VERSION=1.3.2-01
 
 #------------------------------------------------------------------------------------------
 	THIS="$0"
@@ -27,14 +27,12 @@
 	SSH_ENV="$DIRENV_HOME/.ssh-environment"
 	SSH_USR="$(cat $DIRENV_HOME/.envrc.ssh-user 2>&-)"
 
-
 	#echo "DIRENV_ROOT      = $DIRENV_ROOT"
 	#echo "DIRENV_TEMPLATES = $DIRENV_TEMPLATES"
 	#echo "DIRENV_HOME      = $DIRENV_HOME"
 
 	SCRIPT_CURRENT="$(which $SELF)"
 	SCRIPT_MASTER="$DIRENV_ROOT/bin/direnv_cli"
-
 
 #------------------------------------------------------------------------------------------
 	YARN_ROOT=/CLOUD/Development.Yarn
@@ -57,7 +55,6 @@ status()
 
         printf "%-10s: %-10s %-20s  %s\n" "$_P1" "$_P2" "$_P3" "$_P4"
 }
-
 
 #------------------------------------------------------------------------------------------
 do_info() {
@@ -148,16 +145,30 @@ do_self_update() {
 	fi
 }
 
+do_self_check_version() {
+	local _TYPE="$1";	shift
+	local _FILE1="$1";	shift
+	local _FILE2="$1";	shift
+
+	local _VERSION1="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE1 | cut -d= -f2)"
+	local _VERSION2="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE2 | cut -d= -f2)"
+
+	if [[ "$_VERSION1"  == "$_VERSION2" ]]; then
+		RESULT=OK
+	else
+		RESULT="DIFF: $_VERSION1 != $_VERSION2"
+	fi
+
+	status "Check" " $_TYPE $RESULT"
+}
 
 do_self_check() {
 	_FILE_CURRENT="$SCRIPT_CURRENT"
-
-	status "Check" "$SELF"
+	do_self_check_version direnv_cli 		$_FILE_CURRENT $DIRENV_ROOT/bin/$SELF
 	diff $_FILE_CURRENT $DIRENV_ROOT/bin/$SELF
 
 	_FILE_CURRENT="$(direnv status|grep 'Loaded RC path' | cut -d' ' -f4-)"
-
-	status "Check" ".envrc"
+	do_self_check_version .envrc 			$_FILE_CURRENT $DIRENV_TEMPLATES/master.envrc
 	diff $_FILE_CURRENT $DIRENV_TEMPLATES/master.envrc
 
 }
@@ -433,6 +444,7 @@ ssh_agent_stop() {
 
 #------------------------------------------------------------------------------------------
 	CMD_GETOPT=/usr/local/opt/gnu-getopt/bin/getopt
+	CMD_GETOPT=getopt
 
 	S_OPTS="vdm:"
 	L_OPTS="verbose,debug,help,version, info"
