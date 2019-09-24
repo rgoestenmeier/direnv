@@ -1,5 +1,8 @@
 #!/usr/local/bin/bash
-#vim: tabstop=4:
+# vim: tabstop=4:
+
+#------------------------------------------------------------------------------------------
+	_DEPLOY_VERSION=1.3.1-03
 
 #------------------------------------------------------------------------------------------
 	THIS="$0"
@@ -12,10 +15,32 @@
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
 	DIRENV_BASE=$PWD/.env
 
-	_DEPLOY_VERSION=1.3.0
+	DIRENV_HOME="$(direnv status | grep 'Loaded RC path' | cut -d' ' -f4- | xargs -I{} dirname {})"
+
+	if [[ "$DIRENV_HOME" == "" ]]; then
+		DIRENV_HOME="$PWD/.env"
+	else
+		DIRENV_HOME="$DIRENV_HOME/.env"
+	fi
+
+	SSH_USR="$(basename "$HERE")"
+	SSH_ENV="$DIRENV_HOME/.ssh-environment"
+	SSH_USR="$(cat $DIRENV_HOME/.envrc.ssh-user 2>&-)"
+
+
+	#echo "DIRENV_ROOT      = $DIRENV_ROOT"
+	#echo "DIRENV_TEMPLATES = $DIRENV_TEMPLATES"
+	#echo "DIRENV_HOME      = $DIRENV_HOME"
+
+	SCRIPT_CURRENT="$(which $SELF)"
+	SCRIPT_MASTER="$DIRENV_ROOT/bin/direnv_cli"
+
 
 #------------------------------------------------------------------------------------------
-DEBUG() {
+	YARN_ROOT=/CLOUD/Development.Yarn
+
+#------------------------------------------------------------------------------------------
+debug() {
 	local _LEVEL=$1;	shift;
 	local _LINE="$*";	shift;
 	
@@ -23,7 +48,19 @@ DEBUG() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_INFO() {
+status()
+{
+        _P1="${1:-}"; shift
+        _P2="${1:-}"; shift
+        _P3="${1:-}"; shift
+        _P4="$*"
+
+        printf "%-10s: %-10s %-20s  %s\n" "$_P1" "$_P2" "$_P3" "$_P4"
+}
+
+
+#------------------------------------------------------------------------------------------
+do_info() {
 	echo "SELF             = $SELF"
 	echo "VERSION          = $_DEPLOY_VERSION"
 	echo "THIS             = $THIS"
@@ -37,7 +74,7 @@ DO_INFO() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_HELP() {
+do_help() {
 	echo "$*"
 	echo " "
 
@@ -61,7 +98,7 @@ DO_HELP() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_VERSION() {
+do_version() {
 	echo "$SELF: Version $_DEPLOY_VERSION"
 	exit 0
 }
@@ -80,7 +117,7 @@ LOG() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_GET_VERSIONS() {
+do_get_version() {
 	local _VERSION="$1"
 
 	if [[ "$_VERSION" == "LTS" ]]; then
@@ -97,7 +134,13 @@ DO_GET_VERSIONS() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_SELF_UPDATE() {
+do_show_versions() {
+		_FILTER="sed -n 2,10p"
+		curl -s http://nodejs.org/dist/index.tab | sed '1,$s/^v//' |  awk '{ print $1 }' | $_FILTER
+}
+
+#------------------------------------------------------------------------------------------
+do_self_update() {
 	if [[ -d "$DIRENV_ROOT/.git" ]]; then
 		cd "$DIRENV_ROOT"
 		git pull
@@ -105,8 +148,22 @@ DO_SELF_UPDATE() {
 	fi
 }
 
+
+do_self_check() {
+	_FILE_CURRENT="$SCRIPT_CURRENT"
+
+	status "Check" "$SELF"
+	diff $_FILE_CURRENT $DIRENV_ROOT/bin/$SELF
+
+	_FILE_CURRENT="$(direnv status|grep 'Loaded RC path' | cut -d' ' -f4-)"
+
+	status "Check" ".envrc"
+	diff $_FILE_CURRENT $DIRENV_TEMPLATES/master.envrc
+
+}
+
 #------------------------------------------------------------------------------------------
-DO_CHECK_INSTALL() {
+do_install_check() {
 	if [[ ! -n "$DIRENV_HOME" ]]; then
 		printf "ERROR: direnv not setup correct. Missing DIRENV_BASE\n"
 		exit
@@ -114,10 +171,10 @@ DO_CHECK_INSTALL() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_INSTALL_DEFAULTS() {
+do_install_defaults() {
 	local _VERSION=$1; shift
 
-	DO_CHECK_INSTALL
+	do_install_check
 
 	local _FOLDER=$DIRENV_BASE/node/$_VERSION
 	local _CONFIG=.env/.envrc.config
@@ -137,10 +194,10 @@ DO_INSTALL_DEFAULTS() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_INSTALL_PYTHON() {
+do_install_python() {
 	local _FOLDER=$DIRENV_HOME
 
-	DO_CHECK_INSTALL
+	do_install_check
 
 	LOG "Create venv in $_FOLDER/python"
 	python3 -m venv $_FOLDER/python
@@ -153,18 +210,24 @@ DO_INSTALL_PYTHON() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_INSTALL_NODE() {
+do_install_node() {
 	local _VERSION=$1
-	local _LINK=http://nodejs.org/dist/${_VERSION}/node-${_VERSION}-darwin-x64.tar.gz
 
-	DO_CHECK_INSTALL
+	[[ "$OSTYPE" =~ "linux"  ]] && _OS=linux
+	[[ "$OSTYPE" =~ "darwin" ]] && _OS=darwin
+
+	local _LINK=http://nodejs.org/dist/${_VERSION}/node-${_VERSION}-${_OS}-x64.tar.gz
+
+	echo $_LINK
+
+	do_install_check
 
 	local _FOLDER=$DIRENV_HOME/node/$_VERSION
 	local _TARFILE=$(basename "$_LINK")
 	local _TARFLDR=$DIRENV_ROOT/cache
 	local _TARPATH=$_TARFLDR/$_TARFILE
 
-	DO_CHECK_INSTALL
+	do_install_check
 
 	if [[ -f "$_TARPATH" ]]; then
 		LOG "Use cached NodeJS archiv for version $_VERSION"
@@ -189,33 +252,35 @@ DO_INSTALL_NODE() {
 
 	if [[ $OPT_WITH_DEFAULTS = "YES" ]]; then
 		LOG "Install defaults"
-		DO_INSTALL_DEFAULTS $_VERSION
+		do_install_defaults $_VERSION
 	fi
 }
 
 #------------------------------------------------------------------------------------------
-DO_INSTALL_YARN() {
+do_install_yarn() {
 	local _VERSION=$1
 	local _FOLDER=$DIRENV_HOME/yarn
 
-	DO_CHECK_INSTALL
+	do_install_check
 
 	LOG "Install yarn"
 	npm --silent -g install yarn
 
-	LOG "Set Yarn Global Folder to $_FOLDER"
+	LOG "Set Yarn Global Folder to ${_FOLDER}"
 	yarn --silent config set global-folder ${_FOLDER}
 
-	#LOG "Set Yarn Cache  Folder to $_FOLDER"
-	#yarn --silent config set cache-folder  ${_FOLDER}.cache
+	LOG "Set Yarn Cache  Folder to ${YARN_ROOT}/cache-folder"
+	yarn --silent config set cache-folder  ${YARN_ROOT}/cache-folder
+
+	yarn config list
 }
 
 #------------------------------------------------------------------------------------------
-DO_INSTALL_ANGULAR() {
+do_install_angular_only() {
 	local _VERSION=$1
 	local _FOLDER=$DIRENV_HOME/yarn
 
-	DO_CHECK_INSTALL
+	do_install_check
 
 	LOG "Install Angular CLI with yarn"
 	yarn --silent global add @angular/cli
@@ -228,45 +293,54 @@ DO_INSTALL_ANGULAR() {
 }
 
 #------------------------------------------------------------------------------------------
-DO_INSTALL_IONIC() {
+do_install_ionic_only() {
 	local _VERSION=$1
 	local _FOLDER=$DIRENV_HOME/yarn
 
-	DO_CHECK_INSTALL
+	do_install_check
 
-	LOG "Install yarn"
-	yarn --silent add  ionic
+	LOG "Install Ionic"
+	#yarn --silent global add  ionic
+	yarn global add ionic
 
-	[[ -f /usr/local/bin/ionic ]] && rm /usr/local/bin/ionic
+	LOG "Setup link to binaries"
+
+	mkdir -p  $DIRENV_HOME/bin
+
+	if [[ -f /usr/local/bin/ionic ]]; then
+		rm -f                                             "$DIRENV_HOME/bin/ionic"
+		ln -s "$DIRENV_HOME/yarn/node_modules/.bin/ionic" "$DIRENV_HOME/bin/ionic"
+	fi
 }
 
-DO_INSTALL_PROD_IONIC() {
+do_install_ionic() {
 	local _VERSION=$1
 
-	DO_CHECK_INSTALL
+	do_install_check
 
-	DO_INSTALL_PYTHON	$_VERSION
-	DO_INSTALL_NODE		$_VERSION
-	DO_INSTALL_YARN		$_VERSION
-	DO_INSTALL_IONIC	$_VERSION
+	do_install_python			$_VERSION
+	do_install_node				$_VERSION
+	do_install_yarn				$_VERSION
+	do_install_ionic_only		$VERSION
 
-	DO_INSTALL_DEFAULTS
+	do_install_defaults
 }
 
-DO_INSTALL_PROD_ANGULAR() {
+do_install_angular() {
 	local _VERSION=$1
 
-	DO_CHECK_INSTALL
+	do_install_check
 
-	DO_INSTALL_PYTHON	$_VERSION
-	DO_INSTALL_NODE		$_VERSION
-	DO_INSTALL_YARN		$_VERSION
-	DO_INSTALL_ANGULAR 	$_VERSION
+	do_install_python			$_VERSION
+	do_install_node				$_VERSION
+	do_install_yarn				$_VERSION
+	do_install_angular_only 	$_VERSION
 
-	DO_INSTALL_DEFAULTS
+	do_install_defaults
 }
 
-DO_INIT() {
+#------------------------------------------------------------------------------------------
+do_init() {
 	local _TYPE="$1"
 
 	local _EXT
@@ -291,8 +365,62 @@ DO_INIT() {
 }
 
 #------------------------------------------------------------------------------------------
+ssh_agent_start() {
+	_START=${#SSH_ENV}
+	_REL_PATH="${DIRENV_HOME:$_START}"
+
+	status  "SSH" "Start"     ""				"$_REL_PATH"
+	/usr/bin/ssh-agent | sed 's/^echo/#echo/' >"${SSH_ENV}"
+
+	chmod 600 "${SSH_ENV}"
+	. "${SSH_ENV}" >/dev/null
+}
+
+#------------------------------------------------------------------------------------------
+ssh_agent_status() {
+	_START=${#SSH_ENV}
+	_REL_PATH="${DIRENV_HOME:$_START}"
+
+	if [[ ! -f "${SSH_ENV}" ]]; then
+		status  "SSH" "NO SSH Environment"	""					"$_REL_PATH"
+	else
+		status  "SSH" "SSH Environment"	"$SSH_AGENT_PID"		"$_REL_PATH"
+		. "${SSH_ENV}" > /dev/null
+
+		cat "${SSH_ENV}"
+		ps -ef | grep $SSH_AGENT_PID
+	fi
+}
+
+#------------------------------------------------------------------------------------------
+ssh_agent_stop() {
+	_START=${#SSH_ENV}
+	_REL_PATH="${DIRENV_HOME:$_START}"
+
+	if [[ ! -f "${SSH_ENV}" ]]; then
+		status  "SSH" "NO SSH Environment"	""					"$_REL_PATH"
+	else
+		. "${SSH_ENV}" > /dev/null
+
+		ps $SSH_AGENT_PID 1>&- 2>&-
+		_RC=$?
+
+
+		if [[ "$_RC" = 0 ]]; then
+			status  "SSH" "Stop"		"$SSH_AGENT_PID"	"$_REL_PATH"
+			kill -9 $SSH_AGENT_PID
+
+			rm -f "${SSH_ENV}"
+		else
+			status  "SSH" "SSH Agent"		"NO running agent"	"$_REL_PATH"
+		fi
+	fi
+
+}
+
+#------------------------------------------------------------------------------------------
 	VERBOSE=false
-	DEBUG=false
+	debug=false
 
 	OPT_YSN_VERSION=NO
 	OPT_YSN_INFO=NO
@@ -308,7 +436,10 @@ DO_INIT() {
 
 	S_OPTS="vdm:"
 	L_OPTS="verbose,debug,help,version, info"
-	L_OPTS="$L_OPTS,list,update,install:,install-version:,install-defaults,with-defaults,init:"
+	L_OPTS="$L_OPTS,list,update,check"
+	L_OPTS="$L_OPTS,init:"
+	L_OPTS="$L_OPTS,install:,install-version:,install-defaults,with-defaults"
+	L_OPTS="$L_OPTS,ssh-start,ssh-stop,ssh-status"
 
 	OPTS=$($CMD_GETOPT --options "$S_OPTS"--longoptions "$L_OPTS"	-- "$@")
 
@@ -325,6 +456,7 @@ DO_INIT() {
 			--info)				OPT_YSN_INFO=YES									;;
 
 			--update)			OPT_MODE=update										;;
+			--check)			OPT_MODE=check										;;
 
 			--list)				OPT_MODE=list										;;
 			--init)				OPT_MODE=init;		OPT_TYPE="$2";		shift		;;
@@ -334,6 +466,10 @@ DO_INIT() {
 			--with-defaults)	OPT_WITH_DEFAULTS=YES								;;
 	
 			--install-defaults)	OPT_MODE=install_defaults							;;
+
+			--ssh-start)		OPT_MODE=ssh-start									;;
+			--ssh-stop)			OPT_MODE=ssh-stop									;;
+			--ssh-status)		OPT_MODE=ssh-status									;;
 
 			--)														shift; break	;;
 			* )														       break	;;
@@ -351,20 +487,20 @@ DO_INIT() {
 		OPT_MODE=$OPT_MODE/$OPT_TYPE
 	fi
 
-	[[ $OPT_YSN_HELP    == YES ]] && DO_HELP
-	[[ $OPT_YSN_VERSION == YES ]] && DO_VERSION
-	[[ $OPT_YSN_INFO    == YES ]] && DO_INFO
+	[[ $OPT_YSN_HELP    == YES ]] && do_help
+	[[ $OPT_YSN_VERSION == YES ]] && do_version
+	[[ $OPT_YSN_INFO    == YES ]] && do_info
 
 
 	if [[ $OPT_TYPE == node ]]; then
 		if   [[ "$OPT_VERSION" == "MISSING" && "$OPT_YSN_VERSION" == YES ]]; then
-			DO_HELP "Missing Version. Use Parameter --install-version instead of --version"
+			do_help "Missing Version. Use Parameter --install-version instead of --version"
 		fi
 	fi
 
-	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
-	elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LATEST)
-	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(DO_GET_VERSIONS LTS)
+	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(do_get_version LTS)
+	elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(do_get_version LATEST)
+	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(do_get_version LTS)
 	elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
 	fi
 
@@ -376,22 +512,31 @@ DO_INIT() {
 	#echo "OPT_VERSION     = $OPT_VERSION"
 
 	case $OPT_MODE in
-		init)				DO_INIT			$OPT_TYPE				;;
-		update)				DO_SELF_UPDATE							;;
+		init)					do_init			$OPT_TYPE				;;
+		update)					do_self_update							;;
+		check)					do_self_check							;;
 
-		version)			DO_VERSION								;;
-		help)				DO_HELP									;;
+		version)				do_version								;;
+		help)					do_help									;;
 
-		install/node)		DO_INSTALL_NODE		$OPT_VERSION		;;
-		install/nodejs)		DO_INSTALL_NODE		$OPT_VERSION		;;
-		install/yarn)		DO_INSTALL_YARN		$OPT_VERSION		;;
+		install/node)			do_install_node			$OPT_VERSION	;;
+		install/nodejs)			do_install_node			$OPT_VERSION	;;
+		install/yarn)			do_install_yarn			$OPT_VERSION	;;
 
-		install/angular)	DO_INSTALL_PROD_ANGULAR	$OPT_VERSION	;;
-		install/ionic)		DO_INSTALL_PROD_IONIC	$OPT_VERSION		;;
+		install/angular)		do_install_angular		$OPT_VERSION	;;
+		install/angular_only)	do_install_angular_only	$OPT_VERSION	;;
 
-		install/python)		DO_INSTALL_PYTHON						;;
-		install_defaults)	DO_INSTALL_DEFAULTS	$OPT_VERSION		;;
+		install/ionic)			do_install_ionic		$OPT_VERSION	;;
+		install/ionic_only)		do_install_ionic_only	$OPT_VERSION	;;
 
-		list)				DO_GET_VERSIONS							;;
+		install/python)			do_install_python						;;
+		install_defaults)		do_install_defaults						;;
+
+		list)					do_get_version							;;
+
+		ssh-start)				ssh_agent_start							;;
+		ssh-stop)				ssh_agent_stop							;;
+		ssh-status)				ssh_agent_status						;;
+
 	esac
 
