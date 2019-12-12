@@ -2,7 +2,7 @@
 # vim: tabstop=4:
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=1.3.2-01
+	_DEPLOY_VERSION=1.4.1-01
 
 #------------------------------------------------------------------------------------------
 	THIS="$0"
@@ -35,7 +35,7 @@
 	SCRIPT_MASTER="$DIRENV_ROOT/bin/direnv_cli"
 
 #------------------------------------------------------------------------------------------
-	YARN_ROOT=/CLOUD/Development.Yarn
+	YARN_ROOT=/Users/Shared/CLOUD/Development.Yarn
 
 #------------------------------------------------------------------------------------------
 debug() {
@@ -160,6 +160,8 @@ do_self_check_version() {
 	fi
 
 	status "Check" " $_TYPE $RESULT"
+	status "Check" " $_VERSION1 $_FILE1"
+	status "Check" " $_VERSION2: $_FILE2"
 }
 
 do_self_check() {
