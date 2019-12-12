@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/local/bin/bash
 	set -u
 
 #-------------------------------------------------------------------------------
-	_DEPLOY_VERSION=1.3.1-02
+	_DEPLOY_VERSION=1.4.2-01
 
 #-------------------------------------------------------------------------------
 	ARGV=$BASH_ARGV
@@ -12,6 +12,8 @@
 
 
 	export DIRENV_HOME="$HERE/.env"
+
+	[[ -f "$DIRENV_HOME/.envrc.config" ]] && eval $(grep -E '^use_' $DIRENV_HOME/.envrc.config | tr "[:lower:]" "[:upper:]")
 
 	export SSH_USR="$(basename "$HERE")"
 	export SSH_ENV="$DIRENV_HOME/.ssh-environment"
@@ -26,16 +28,32 @@ status()
 	_P1="${1:-}"; shift
 	_P2="${1:-}"; shift
 	_P3="${1:-}"; shift
-	_P4="$*"
+	_P4="${1:-}"; shift
+	_P5="$*"
+
+	# USE_... TRUE/FALSE/MISSING als lowcase
+	_P3="${_P3,,}"
+
+	if   [[ "$_P3" == "-"      ]]; then _YSN_PRINT=NO
+	elif [[ "$_P3" == "false"  ]]; then _YSN_PRINT=NO
+	else                                _YSN_PRINT=YES
+	fi
 
 	if [[ "$_P1" == "Enabled"  ]]; then
 		if [[ "$_P4" == "HERE" ]]; then
-			_P3="-"
+			_P4="-"
 			_P4="NOT FOUND"
 		fi
 	fi
 
-	printf "%-10s: %-10s %-20s  %s\n" "$_P1" "$_P2" "$_P3" "$_P4"
+	case "$_P3" in
+		true)	_P3=		;;
+		false)	_P3=Nein	;;
+	esac
+
+	if [[ $_YSN_PRINT == YES ]]; then
+		printf "%-10s: %-10s | %-5s  %-20s  %s\n" "$_P1" "$_P2" "$_P3" "$_P4"
+	fi
 }
 
 #-------------------------------------------------------------------------------
@@ -43,7 +61,7 @@ use_ssh_agent() {
 	_START=${#SSH_ENV}
 	_REL_PATH="${DIRENV_HOME:$_START}"
 
-	status  "Init" "SSH Agent"     ""							"$_REL_PATH"
+	status  "Init" "SSH Agent"     ""	""							"$_REL_PATH"
 	/usr/bin/ssh-agent | sed 's/^echo/#echo/' >"${SSH_ENV}"
 
 	chmod 600 "${SSH_ENV}"
@@ -70,12 +88,14 @@ use_python_venv() {
 	export _PYTHON_PATH="-"
 	export _PYTHON_VERSION="-"
 
-	if [[ -f .env/python/bin/activate ]]; then
-		export DIRENV_STATUS_HAS_PYTHON=YES
-		. .env/python/bin/activate
+	if [[ "YES" == "$USE_PYTHON" ]]; then
+		if [[ -f .env/python/bin/activate ]]; then
+			export DIRENV_STATUS_HAS_PYTHON=YES
+			. .env/python/bin/activate
 
-		export _PYTHON_PATH="$(show_path python)"
-		export _PYTHON_VERSION="$(python --version 2>&-|cut -d' ' -f2)"
+			export _PYTHON_PATH="$(show_path python)"
+			export _PYTHON_VERSION="$(python --version 2>&-|cut -d' ' -f2)"
+		fi
 	fi
 }
 
@@ -126,7 +146,39 @@ show_path()
 }
 
 #-------------------------------------------------------------------------------
-	status  "Enabled" "HERE" "$_DEPLOY_VERSION" "$HERE"
+use_config()
+{
+	[[ -f "$DIRENV_HOME/.envrc.config" ]] && eval $(grep -E '^use_' $DIRENV_HOME/.envrc.config | tr "[:lower:]" "[:upper:]")
+
+	export    USE_IONIC="${USE_IONIC:--}"
+	export  USE_ANGULAR="${USE_ANGULAR:--}"
+	export     USE_NODE="${USE_NODE:--}"
+	export  USE_FLUTTER="${USE_FLUTTER:--}"
+	export   USE_DOTNET="${USE_DOTNET:--}"
+	export   USE_PYTHON="${USE_PYTHON:--}"
+	export USE_FASTLANE="${USE_FASTLANE:--}"
+	export     USE_YARN="${USE_YARN:--}"
+}
+
+#-------------------------------------------------------------------------------
+show_config()
+{
+	echo "USE_IONIC   =$USE_IONIC"
+	echo "USE_ANGULAR =$USE_ANGULAR"
+	echo "USE_NODE    =$USE_NODE"
+	echo "USE_FLUTTER =$USE_FLUTTER"
+	echo "USE_DOTNET  =$USE_DOTNET"
+	echo "USE_PYTHON  =$USE_PYTHON"
+	echo "USE_FASTLANE=$USE_FASTLANE"
+	echo "USE_YARN    =$USE_YARN"
+}
+
+
+#-------------------------------------------------------------------------------
+	use_config
+
+#-------------------------------------------------------------------------------
+	status  "Enabled" "HERE" ""	"$_DEPLOY_VERSION" "$HERE"
 
 #-------------------------------------------------------------------------------
 export NODE_VERSIONS="$DIRENV_HOME/node"
@@ -147,41 +199,41 @@ if [[ -d "$NODE_VERSIONS" ]]; then
 	export _NPM_VERSION="$(npm --version 2>&-)"
 	export _NPM_PATH="$(show_path npm)"
 else
-	status  "Enabled" "node"		"no path for node"	"$NODE_VERSIONS"
+	status  "Enabled" "node"	"$USE_NODE"	"no path for node"	"$NODE_VERSIONS"
 fi
 
-status  "Enabled" "node"		"$_NODE_VERSION"		"$_NODE_PATH"
-status  "Enabled" "npm"			"$_NPM_VERSION"			"$_NPM_PATH"
+status  "Enabled" "node"	"$USE_NODE"	"$_NODE_VERSION"		"$_NODE_PATH"
+status  "Enabled" "npm"		"$USE_NODE"	"$_NPM_VERSION"			"$_NPM_PATH"
 
 #-------------------------------------------------------------------------------
 use_yarn
-status  "Enabled" "yarn"		"$_YARN_VERSION"		"$_YARN_PATH"
+status  "Enabled" "yarn"	"$USE_YARN"	"$_YARN_VERSION"		"$_YARN_PATH"
 
 #-------------------------------------------------------------------------------
 use_ionic
-status  "Enabled" "ionic"		"$_IONIC_VERSION"		"$_IONIC_PATH"
+status  "Enabled" "ionic"	"$USE_IONIC"	"$_IONIC_VERSION"		"$_IONIC_PATH"
 
 #-------------------------------------------------------------------------------
 use_angular
-status  "Enabled" "angular"		"$_ANGULAR_VERSION"		"$_ANGULAR_PATH"
+status  "Enabled" "angular"	"$USE_ANGULAR"	"$_ANGULAR_VERSION"		"$_ANGULAR_PATH"
 
 #-------------------------------------------------------------------------------
 #	use_flutter
-#	status  "Enabled" "flutter"		"$_FLUTTER_VERSION"		"$_FLUTTER_PATH"
+#	status  "Enabled" "flutter"	"$USE_FLUTTER"	"$_FLUTTER_VERSION"		"$_FLUTTER_PATH"
 
 #-------------------------------------------------------------------------------
 use_fastlane
-status  "Enabled" "fastlane"	"$_FASTLANE_VERSION"	"$_FASTLANE_PATH"
+status  "Enabled" "fastlane"	"$USE_FLUTTER"	"$_FASTLANE_VERSION"	"$_FASTLANE_PATH"
 
 #-------------------------------------------------------------------------------
 use_python_venv
 
 if [[ "$DIRENV_STATUS_HAS_PYTHON" == YES ]]; then
-	status  "Enabled" "python"	"$_PYTHON_VERSION"		"$_PYTHON_PATH"
+	status  "Enabled" "python"	"$USE_PYTHON"	"$_PYTHON_VERSION"		"$_PYTHON_PATH"
 else
-	status  "Missing" "python"
+	status  "Missing" "python"	"$USE_PYTHON"
 fi
 
 #-------------------------------------------------------------------------------
 use_ssh
-status  "Enabled" "ssh"      "SSH_AGENT_PID: $SSH_AGENT_PID"			"$(ssh-add  -l | cut -d' ' -f3)"
+status  "Enabled" "ssh"      	""	"SSH_AGENT_PID: $SSH_AGENT_PID"		"$(ssh-add  -l | cut -d' ' -f3)"
