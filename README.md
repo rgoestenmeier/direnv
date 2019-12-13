@@ -4,7 +4,8 @@
 
 Switching between development environments
 
-### Switch to ```python``` environment with Python version 3.7.4 and no NodeJS installed. ###
+### Switch to ```python``` environment with Python version 3.7.4 and no NodeJS installed
+
 ```bash
 $ cd /tmp/env.python
 Enabled   : HERE                             /tmp/env.python
@@ -15,7 +16,8 @@ Enabled   : python     3.7.4                 HERE/.env/python/bin/python
 Enabled   : ssh        SSH_AGENT_PID: 71992  r14r@via-internet.de
 ```
 
-### Switch to ```node``` environment with no Python and NodeJS 12.9.0. ###
+### Switch to ```node``` environment with no Python and NodeJS 12.9.0
+
 ```bash
 $ cd /tmp/env.node
 Enabled   : HERE                             /tmp/env.node
@@ -26,7 +28,7 @@ Missing   : python
 Enabled   : ssh        SSH_AGENT_PID: 95612  r14r@via-internet.de
 ```
 
-## Introduction ##
+## Introduction
 
 [direnv](https://direnv.net/) is a great tool for managing different development environment.
 
@@ -58,7 +60,7 @@ $HOME/bin/direnv_cli
 
 ## Setup environment for Python
 
-### Change to the destination folder of your nvironment ###
+### Change to the destination folder of your nvironment
 
 ```bash
 $ cd $HOME
@@ -66,7 +68,7 @@ $ mkdir -p /tmp/env.python
 $ cd       /tmp/env.python/
 ```
 
-### Initialize folder with direnv configuration files ###
+### Initialize folder with direnv configuration files
 
 ```bash
 $ direnv_cli --init master
@@ -76,7 +78,7 @@ $ direnv_cli --init master
 direnv: error .envrc is blocked. Run `direnv allow` to approve its content.
 ```
 
-### Allow access to direnv ###
+### Allow access to direnv
 
 ```bash
 $ direnv allow
@@ -89,7 +91,7 @@ Init      : SSH Agent                        /tmp/env.python/.ssh-environment
 Enabled   : ssh        SSH_AGENT_PID: 71625  r14r@via-internet.de
 ```
 
-### Install Python ###
+### Install Python
 
 ```bash
 $ direnv_cli --install python
@@ -102,7 +104,7 @@ Installing collected packages: pip
 Successfully installed pip-19.2.2
 ```
 
-### Reload direnv configuration ###
+### Reload direnv configuration
 
 ```bash
 $ direnv reload
@@ -116,7 +118,7 @@ Enabled   : ssh        SSH_AGENT_PID: 71625  r14r@via-internet.de
 
 ## Setup environment for NodeJS
 
-### Change to the destination folder for ypur nvironment ###
+### Change to the destination folder for ypur nvironment
 
 ```bash
 $ cd $HOME
@@ -124,7 +126,7 @@ $ mkdir -p /tmp/env.node
 $ cd       /tmp/env.node/
 ```
 
-### Initialize folder with direnv configuration files ###
+### Initialize folder with direnv configuration files
 
 ```bash
 $ direnv_cli --init master
@@ -134,7 +136,7 @@ $ direnv_cli --init master
 direnv: error .envrc is blocked. Run `direnv allow` to approve its content.
 ```
 
-### Allow access to direnv ###
+### Allow access to direnv
 
 ```bash
 $ direnv allow
@@ -147,7 +149,7 @@ Init      : SSH Agent                        /tmp/env.node/.ssh-environment
 Enabled   : ssh        SSH_AGENT_PID: 71625  r14r@via-internet.de
 ```
 
-### Install LTS NodeJS ###
+### Install LTS NodeJS
 
 ```bash
 $ direnv_cli --install node --install-version lts
@@ -159,7 +161,7 @@ $ direnv_cli --install node --install-version lts
 added 19 packages from 13 contributors, removed 15 packages and updated 52 packages in 43.056s
 ```
 
-### or install latest NodeJS ###
+### or install latest NodeJS
 
 ```bash
 direnv_cli --install node --install-version latest
@@ -171,7 +173,7 @@ direnv_cli --install node --install-version latest
 updated 15 packages in 36.075s
 ```
 
-### Reload direnv configuration ###
+### Reload direnv configuration
 
 ```bash
 direnv reload
@@ -218,12 +220,14 @@ Within the direnv configuration, there is a file ```.envrc.ssh-user``` with the 
 
 So, the content of ```.envrc.ssh-user``` is
 
+```bash
     demouser
+```
 
 and the key to load will be
 
 ```bash
-$HOME/.ssh/id_ras_demo-user
+$HOME/.ssh/id_rsa_demo-user
 ```
 
 The result is a correct ssh-agent configuration
