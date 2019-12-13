@@ -1,8 +1,9 @@
 #!/usr/local/bin/bash
 #vim: tabstop=4:
+	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=1.4.3-01
+	_DEPLOY_VERSION=1.4.4-01
 
 #------------------------------------------------------------------------------------------
 	THIS="$0"
@@ -29,7 +30,6 @@
 
 	#echo "DIRENV_ROOT      = $DIRENV_ROOT"
 	#echo "DIRENV_TEMPLATES = $DIRENV_TEMPLATES"
-	#echo "DIRENV_HOME      = $DIRENV_HOME"
 
 	SCRIPT_CURRENT="$(which $SELF)"
 	SCRIPT_MASTER="$DIRENV_ROOT/bin/direnv_cli"
@@ -174,21 +174,23 @@ config_install()
 #-------------------------------------------------------------------------------
 config_save_as_master()
 {
-	local _EXT
-	_EXT="master"
+	local _EXT="master"
+	local _FILE="$DIRENV_HOME/.envrc.config"
+	local _VERSION="$(grep -E '^.+_DEPLOY_VERSION'  $_FILE | cut -d= -f2)"
 
-	LOG "Copy ${_EXT}.config to master"
+	LOG "Copy $_FILE (Version $_VERSION) to ${_EXT}.config"
 
 	_YSN_SAVE=NO
 
-	if   [[ ! -f ".env/.envrc.config" ]]; then _YSN_SAVE=YES
-	elif [[ "$OPT_FORCE" == "YES"     ]]; then _YSN_SAVE=YES
-	else                                  LOG ".envrc.config already exists. User --force to overide" NONUMBER
+	if   [[ ! -f "$_FILE"          ]]; then _YSN_SAVE=YES
+	elif [[ "$OPT_FORCE" == "YES"  ]]; then _YSN_SAVE=YES
+	else                               LOG ".envrc.config already exists. User --force to overide" NONUMBER
 	fi
 
 	if [[ "$_YSN_SAVE" == "YES" ]]; then
-		cp .env/.envrc.config $DIRENV_TEMPLATES/${_EXT}.config
-		LOG "Installed: $DIRENV_TEMPLATES/${_EXT}.config"
+		cp $_FILE $DIRENV_TEMPLATES/${_EXT}.config
+		cp $_FILE $DIRENV_TEMPLATES/${_EXT}.config.${_VERSION}
+		LOG "Done: $DIRENV_TEMPLATES/${_EXT}.config"
 	fi
 }
 
@@ -535,6 +537,8 @@ ssh_agent_stop() {
 	OPT_YSN_INFO=NO
 	OPT_YSN_HELP=NO
 
+	OPT_TYPE=MISSING
+
 	OPT_VERSION_USE_LATEST=NO
 
 	OPT_VERSION=MISSING
@@ -589,7 +593,7 @@ ssh_agent_stop() {
 
 			--show-config)			OPT_MODE=show-config						;;
 			--edit-config)			OPT_MODE=edit-config						;;
-			--install-config)	OPT_MODE=install-default-config					;;
+			--install-config)		OPT_MODE=install-default-config					;;
 			--save-config-as-master)	OPT_MODE=save-config-as-master					;;
 
 			--)										shift;	break	;;
