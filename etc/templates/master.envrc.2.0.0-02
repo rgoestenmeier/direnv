@@ -2,7 +2,7 @@
 	set -u
 
 #-------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.0.0-04
+	_DEPLOY_VERSION=2.0.0-02
 
 #-------------------------------------------------------------------------------
 	ARGV=$BASH_ARGV
@@ -10,23 +10,17 @@
 	HERE="$(cd $(dirname "$ARGV"); pwd)"
 	SELF="$(basename "$ARGV")"
 
-        export DIRENV_BASE="$HERE"
+
 	export DIRENV_HOME="$HERE/.env"
 
-        DIRENV_FILE_ENVRC="$DIRENV_BASE/.envrc"
-        DIRENV_FILE_CONFIG="$DIRENV_HOME/.envrc.config"
-        DIRENV_FILE_SSHENV="$DIRENV_HOME/.ssh-environment"
-        DIRENV_FILE_SSHUSR="$DIRENV_HOME/.ssh-user"
+	[[ -f "$DIRENV_HOME/.envrc.config" ]] && eval $(grep -E '^use_' $DIRENV_HOME/.envrc.config | tr "[:lower:]" "[:upper:]")
 
-	#
-	[[ -f "$DIRENV_FILE_CONFIG" ]] && eval $(grep -E '^use_' $DIRENV_FILE_CONFIG | tr "[:lower:]" "[:upper:]")
+	export SSH_USR="$(basename "$HERE")"
+	export SSH_ENV="$DIRENV_HOME/.ssh-environment"
 
-	#
-	export SSH_ENV="$DIRENV_FILE_SSHENV"
+	export SSH_USR=""
+	[[ -f "$DIRENV_HOME/.envrc.ssh-user" ]] && export SSH_USR="$(< $DIRENV_HOME/.envrc.ssh-user)"
 
-	#
-	export SSH_USR="default"
-	[[ -f "$DIRENV_FILE_SSHUSR" ]] && export SSH_USR="$(< $DIRENV_FILE_SSHUSR)"
 
 #-------------------------------------------------------------------------------
 status()
@@ -38,11 +32,11 @@ status()
 	_P5="$*"			# Pfad
 
 	# USE_... YES/NO/MISSING
-	_P3="${_P3^^}"
+	_P3="${_P3,,}"
 
 	if   [[ "$_P3" == "-"   ]]; then _YSN_PRINT=NO
 	elif [[ "$_P3" == "NO"  ]]; then _YSN_PRINT=NO
-	else                             _YSN_PRINT=YES
+	else                                _YSN_PRINT=YES
 	fi
 
 	if [[ "$_P1" == "Enabled"  ]]; then
@@ -75,13 +69,13 @@ use_ssh_agent() {
 }
 
 use_ssh() {
-	if [[ ! -f "${SSH_ENV}" ]]; then
-		use_ssh_agent;
-	else
+	if [[ -f "${SSH_ENV}" ]]; then
 		. "${SSH_ENV}" > /dev/null
 		ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ > /dev/null || {
 			use_ssh_agent;
 		}
+	else
+		use_ssh_agent;
 	fi
 
 	ssh-add -q -D
@@ -178,7 +172,7 @@ use_config()
 	use_config_export USE_DOTNET	$USE_DOTNET
 	use_config_export USE_PYTHON	$USE_PYTHON
 	use_config_export USE_FASTLANE	$USE_FASTLANE
-	use_config_export USE_YARN	$USE_YARN
+	use_config_export USE_YARN	USE_YARN
 }
 
 #-------------------------------------------------------------------------------

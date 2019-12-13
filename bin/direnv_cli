@@ -3,33 +3,39 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=1.4.4-01
+	_DEPLOY_VERSION=2.0.0-01
 
 #------------------------------------------------------------------------------------------
 	THIS="$0"
+	HERE="$PWD"
+
 	[[ -h "$THIS" ]] && THIS="$(readlink "$THIS")"
 
-	HERE="$(cd $(dirname "$THIS"); pwd)"
 	SELF="$(basename "$0")"
 
-	DIRENV_ROOT="$(cd "$HERE"/..; pwd)"
+	DIRENV_ROOT="$(cd $(dirname "$THIS")/..; pwd)"
+	#DIRENV_ROOT="$(cd "$HERE"/..; pwd)"
 	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
-	DIRENV_BASE=$PWD/.env
-
 	DIRENV_HOME="$(direnv status | grep 'Loaded RC path' | cut -d' ' -f4- | xargs -I{} dirname {})"
 
 	if [[ "$DIRENV_HOME" == "" ]]; then
-		DIRENV_HOME="$PWD/.env"
-	else
-		DIRENV_HOME="$DIRENV_HOME/.env"
+		DIRENV_HOME="$PWD"
 	fi
 
-	SSH_USR="$(basename "$HERE")"
-	SSH_ENV="$DIRENV_HOME/.ssh-environment"
-	SSH_USR="$(cat $DIRENV_HOME/.envrc.ssh-user 2>&-)"
+	#
+	DIRENV_HOME="$DIRENV_HOME/.env"
+	DIRENV_BASE="$(cd $DIRENV_HOME/..; pwd)"
 
-	#echo "DIRENV_ROOT      = $DIRENV_ROOT"
-	#echo "DIRENV_TEMPLATES = $DIRENV_TEMPLATES"
+	#
+	DIRENV_FILE_CONFIG="$DIRENV_HOME/.envrc.config"
+	DIRENV_FILE_ENVRC="$DIRENV_BASE/.envrc"
+	DIRENV_FILE_SSHENV="$DIRENV_HOME/.ssh-environment"
+	DIRENV_FILE_SSHUSR="$DIRENV_HOME/.ssh-user"
+
+	#
+	DIRENV_USER="$(basename "$PWD")"
+	DIRENV_USER_SSH="$(cat $DIRENV_FILE_SSHUSR 2>&-)"
+
 
 	SCRIPT_CURRENT="$(which $SELF)"
 	SCRIPT_MASTER="$DIRENV_ROOT/bin/direnv_cli"
@@ -38,40 +44,53 @@
 	YARN_ROOT=/Users/Shared/CLOUD/Development.Yarn
 
 #------------------------------------------------------------------------------------------
+DEBUGLEVEL=0
 debug() {
 	local _LEVEL=$1;	shift;
 	local _LINE="$*";	shift;
-	
-	printf "DBG: %s\n" "$_LINE"
+
+	if [[ "$_LEVEL" -le "$DEBUGLEVEL" ]]; then
+		printf "DBG: %s\n" "$_LINE"
+	fi
 }
 
 #------------------------------------------------------------------------------------------
 status()
 {
-        _P1="${1:-}"; shift
-        _P2="${1:-}"; shift
-        _P3="${1:-}"; shift
-        _P4="$*"
+        _P1="${1:-}";		shift
+        _P2="${1:-}";		shift
+        _P3="${1:-}";		shift
+        _P4="${1:-}";		shift
+        _P5="${1:-WITHGROUP}";	shift
 
-        printf "%-10s: %-10s %-20s  %s\n" "$_P1" "$_P2" "$_P3" "$_P4"
+
+	if [[ "$_P5" == "WITHGROUP" ]]; then
+		printf "%-10s: %-10s %-20s  %s\n" "$_P1" "$_P2" "$_P3" "$_P4"
+	else
+		printf "%-10s: %-10s %-20s  %s\n" ""     "$_P2" "$_P3" "$_P4"
+	fi
 }
 
 #------------------------------------------------------------------------------------------
-do_info() {
-	echo "SELF             = $SELF"
-	echo "VERSION          = $_DEPLOY_VERSION"
-	echo "THIS             = $THIS"
-	echo "HERE             = $HERE"
-	echo "DIRENV_ROOT      = $DIRENV_ROOT"
-	echo "DIRENV_TEMPLATES = $DIRENV_TEMPLATES"
-	echo "DIRENV_BASE      = $DIRENV_BASE"
-	echo "DIRENV_HOME      = $DIRENV_HOME"
+info() {
+	status "Info"	""
+	status ""	""	"SELF"			"$(relpath "$SELF")"			NOGROUP
+	status ""	""	"VERSION"		"$(relpath "$_DEPLOY_VERSION")"		NOGROUP
+	status "" 	""	"<HOME>"		"$HOME"					NOGROUP
+	status "" 	""	"<DIRENV>"		"$DIRENV_HOME"				NOGROUP
+	status ""	""	"THIS"  		"$(relpath "$THIS")"			NOGROUP
+	status ""	""	"HERE"  		"$(relpath "$HERE")"			NOGROUP
+	status ""	""	"DIRENV_ROOT"		"$(relpath "$DIRENV_ROOT")"		NOGROUP
+	status ""	""	"DIRENV_TEMPLATES"	"$(relpath "$DIRENV_TEMPLATES")"	NOGROUP
+	status ""	""	"DIRENV_BASE"  		"$(relpath "$DIRENV_BASE")"		NOGROUP
+	status ""	""	"DIRENV_HOME"  		"$(relpath "$DIRENV_HOME")"		NOGROUP
+
 
 	exit
 }
 
 #------------------------------------------------------------------------------------------
-do_help() {
+help() {
 	echo "$*"
 	echo " "
 
@@ -95,16 +114,36 @@ do_help() {
 }
 
 #------------------------------------------------------------------------------------------
-do_version() {
-	echo "$SELF: Version $_DEPLOY_VERSION"
+version() {
+	echo "$SELF: Version CLI    $_DEPLOY_VERSION"
+	echo "$SELF: Version Config $DIRENV_FILE_CONFIG"
 	exit 0
 }
 
 #------------------------------------------------------------------------------------------
-do_error() {
+error() {
 	echo "ERROR: $*"
 	exit 0
 }
+
+
+relpath()
+{
+	local _RELPATH; _RELPATH="${1:-}"
+
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DIRENV_HOME/#<DIRENV>/#")"
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DIRENV_HOME\$#<DIRENV>#")"
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$HOME/#<HOME>/#")"
+
+	echo "$_RELPATH"
+}
+
+#echo "$HOME/xyz:	$(relpath $HOME/yxz)"
+#echo "$DIRENV_ROOT:	$(relpath $DIRENV_ROOT)"
+#echo "$DIRENV_HOME:	$(relpath $DIRENV_HOME)"
+#echo "$DIRENV_FILE_ENVRC:		$(relpath $DIRENV_FILE_ENVRC)"
+#echo "$(relpath $DIRENV_FILE_SSHENV)"
+#echo "$(relpath $DIRENV_FILE_SSHUSR)"
 
 #------------------------------------------------------------------------------------------
 STEP=0
@@ -125,9 +164,52 @@ LOG() {
 }
 
 #-------------------------------------------------------------------------------
-use_config()
+envrc_save()
 {
-        [[ -f "$DIRENV_HOME/.envrc.config" ]] && eval $(grep -E '^use_' $DIRENV_HOME/.envrc.config | tr "[:lower:]" "[:upper:]")
+	local _FILE="$DIRENV_FILE_ENVRC"
+	local _VERSION="$(grep -E '^\s+_DEPLOY_VERSION='  $_FILE | cut -d= -f2)"
+
+	#
+	_DIRENV_FILE_ENVRC=".envrc"
+	_MASTER_FILE_ENVRC="$DIRENV_TEMPLATES/master.envrc"
+
+	LOG "Copy '$_DIRENV_FILE_ENVRC' to '$_MASTER_FILE_ENVRC'"
+
+	_YSN_SAVE=NO
+
+
+	if   [[ ! -f "$_MASTER_FILE_ENVRC" ]]; then _YSN_SAVE=YES
+	elif [[ "$OPT_FORCE" == "YES"      ]]; then _YSN_SAVE=YES
+	else                                        LOG "Already exists: ${_MASTER_FILE_ENVRC}." NONUMBER
+	                                            LOG "Use --force to overide" 		 NONUMBER
+	fi
+
+	if [[ "$_YSN_SAVE" == "YES" ]]; then
+		cp $_FILE $_MASTER_FILE_ENVRC
+		cp $_FILE $_MASTER_FILE_ENVRC.${_VERSION}
+		LOG "Done: $_FILE $_MASTER_FILE_ENVRC.${_VERSION}"
+	fi
+}
+
+#-------------------------------------------------------------------------------
+envrc_edit()
+{
+	local _FILE="$DIRENV_FILE_ENVRC"
+	local _VERSION="$(grep -E '^.+_DEPLOY_VERSION'  $_FILE | cut -d= -f2)"
+
+	LOG "Edit $_FILE (Version $_VERSION)"
+
+	if [[ -f "$_FILE" ]]; then
+		vi "$_FILE"
+	else
+		error "$_FILE does not exist." NONUMBER
+	fi
+}
+
+#-------------------------------------------------------------------------------
+config_load()
+{
+        [[ -f "$DIRENV_FILE_CONFIG" ]] && eval $(grep -E '^use_' $DIRENV_FILE_CONFIG | tr "[:lower:]" "[:upper:]")
 
         export USE_IONIC="${USE_IONIC:-MISSING}"
         export USE_ANGULAR="${USE_ANGULAR:-MISSING}"
@@ -142,8 +224,8 @@ use_config()
 #-------------------------------------------------------------------------------
 config_edit()
 {
-        if [[ -f "$DIRENV_HOME/.envrc.config" ]]; then
-		vi $DIRENV_HOME/.envrc.config
+        if [[ -f  "$DIRENV_FILE_CONFIG" ]]; then
+		vi $DIRENV_FILE_CONFIG
 	else
 		echo "ERROR: no config file present (install default with --install-config)"
 	fi
@@ -159,32 +241,33 @@ config_install()
 
 	_YSN_INSTALL=NO
 
-	if   [[ ! -f ".env/.envrc.config" ]]; then _YSN_INSTALL=YES
+	if   [[ ! -f "$DIRENV_FILE_CONFIG" ]]; then _YSN_INSTALL=YES
 	elif [[ "$OPT_FORCE" == "YES"     ]]; then _YSN_INSTALL=YES
-	else                                  LOG ".envrc.config already exists. User --force to overide" NONUMBER
+	else                                  LOG "$DIRENV_FILE_CONFIG already exists. User --force to overide" NONUMBER
 	fi
 
 	if [[ "$_YSN_INSTALL" == "YES" ]]; then
-		cp $DIRENV_TEMPLATES/${_EXT}.config .env/.envrc.config
+		cp $DIRENV_TEMPLATES/${_EXT}.config $DIRENV_FILE_CONFIG
 		LOG "Installed: $DIRENV_TEMPLATES/${_EXT}.config"
 
 		config_show
 	fi
 }
 #-------------------------------------------------------------------------------
-config_save_as_master()
+config_save()
 {
 	local _EXT="master"
-	local _FILE="$DIRENV_HOME/.envrc.config"
+	local _FILE="$DIRENV_FILE_CONFIG"
 	local _VERSION="$(grep -E '^.+_DEPLOY_VERSION'  $_FILE | cut -d= -f2)"
 
 	LOG "Copy $_FILE (Version $_VERSION) to ${_EXT}.config"
 
 	_YSN_SAVE=NO
 
+
 	if   [[ ! -f "$_FILE"          ]]; then _YSN_SAVE=YES
 	elif [[ "$OPT_FORCE" == "YES"  ]]; then _YSN_SAVE=YES
-	else                               LOG ".envrc.config already exists. User --force to overide" NONUMBER
+	else                               LOG "$DIRENV_FILE_CONFIG already exists. User --force to overide" NONUMBER
 	fi
 
 	if [[ "$_YSN_SAVE" == "YES" ]]; then
@@ -197,7 +280,7 @@ config_save_as_master()
 #-------------------------------------------------------------------------------
 config_show()
 {
-	use_config
+	config_load
 
         LOG "Show configuration file"
         LOG "use_ionic    = ${USE_IONIC,,}"		NONUMBER
@@ -211,7 +294,7 @@ config_show()
 }
 
 #------------------------------------------------------------------------------------------
-do_get_version() {
+version_get() {
 	local _VERSION="$1"
 
 	if [[ "$_VERSION" == "LTS" ]]; then
@@ -273,20 +356,20 @@ do_self_check() {
 }
 
 #------------------------------------------------------------------------------------------
-do_install_check() {
+install_check() {
 	if [[ ! -n "$DIRENV_HOME" ]]; then
-		do_error "direnv not setup correct. Missing DIRENV_BASE"
+		error "direnv not setup correct. Missing DIRENV_HOME"
 	fi
 }
 
 #------------------------------------------------------------------------------------------
-do_install_defaults() {
+install_defaults() {
 	local _VERSION=$1; shift
 
-	do_install_check
+	install_check
 
-	local _FOLDER=$DIRENV_BASE/node/$_VERSION
-	local _CONFIG=.env/.envrc.config
+	local _FOLDER=$DIRENV_HOME/node/$_VERSION
+	local _CONFIG=$DIRENV_FILE_CONFIG
 
 	PATH=$_FOLDER/bin:$PATH
 
@@ -303,10 +386,10 @@ do_install_defaults() {
 }
 
 #------------------------------------------------------------------------------------------
-do_install_python() {
+install_python() {
 	local _FOLDER=$DIRENV_HOME
 
-	do_install_check
+	install_check
 
 	LOG "Create venv in $_FOLDER/python"
 	python3 -m venv $_FOLDER/python
@@ -319,7 +402,7 @@ do_install_python() {
 }
 
 #------------------------------------------------------------------------------------------
-do_install_node() {
+install_node() {
 	local _VERSION=$1
 
 	[[ "$OSTYPE" =~ "linux"  ]] && _OS=linux
@@ -329,14 +412,14 @@ do_install_node() {
 
 	echo $_LINK
 
-	do_install_check
+	install_check
 
 	local _FOLDER=$DIRENV_HOME/node/$_VERSION
 	local _TARFILE=$(basename "$_LINK")
 	local _TARFLDR=$DIRENV_ROOT/cache
 	local _TARPATH=$_TARFLDR/$_TARFILE
 
-	do_install_check
+	install_check
 
 	if [[ -f "$_TARPATH" ]]; then
 		LOG "Use cached NodeJS archiv for version $_VERSION"
@@ -361,16 +444,16 @@ do_install_node() {
 
 	if [[ $OPT_WITH_DEFAULTS = "YES" ]]; then
 		LOG "Install defaults"
-		do_install_defaults $_VERSION
+		install_defaults $_VERSION
 	fi
 }
 
 #------------------------------------------------------------------------------------------
-do_install_yarn() {
+install_yarn() {
 	local _VERSION=$1
 	local _FOLDER=$DIRENV_HOME/yarn
 
-	do_install_check
+	install_check
 
 	LOG "Install yarn"
 	npm --silent -g install yarn
@@ -385,11 +468,11 @@ do_install_yarn() {
 }
 
 #------------------------------------------------------------------------------------------
-do_install_angular_only() {
+install_angular_only() {
 	local _VERSION=$1
 	local _FOLDER=$DIRENV_HOME/yarn
 
-	do_install_check
+	install_check
 
 	LOG "Install Angular CLI with yarn"
 	yarn --silent global add @angular/cli
@@ -402,11 +485,11 @@ do_install_angular_only() {
 }
 
 #------------------------------------------------------------------------------------------
-do_install_ionic_only() {
+install_ionic_only() {
 	local _VERSION=$1
 	local _FOLDER=$DIRENV_HOME/yarn
 
-	do_install_check
+	install_check
 
 	LOG "Install Ionic"
 	#yarn --silent global add  ionic
@@ -422,35 +505,35 @@ do_install_ionic_only() {
 	fi
 }
 
-do_install_ionic() {
+install_ionic() {
 	local _VERSION=$1
 
-	do_install_check
+	install_check
 
-	do_install_python			$_VERSION
-	do_install_node				$_VERSION
-	do_install_yarn				$_VERSION
-	do_install_ionic_only		$VERSION
+	install_python			$_VERSION
+	install_node			$_VERSION
+	install_yarn			$_VERSION
+	install_ionic_only		$VERSION
 
-	do_install_defaults
+	install_defaults
 }
 
-do_install_angular() {
+install_angular() {
 	local _VERSION=$1
 
-	do_install_check
+	install_check
 
-	do_install_python			$_VERSION
-	do_install_node				$_VERSION
-	do_install_yarn				$_VERSION
-	do_install_angular_only 	$_VERSION
+	install_python			$_VERSION
+	install_node			$_VERSION
+	install_yarn			$_VERSION
+	install_angular_only 		$_VERSION
 
-	do_install_defaults
+	install_defaults
 }
 
 #------------------------------------------------------------------------------------------
-do_init() {
-	local _TYPE="$1"
+init() {
+	local _TYPE="${1:-master}"
 
 	local _EXT
 	if [[ -n "$_TYPE"  ]]; then
@@ -461,57 +544,70 @@ do_init() {
 
 	mkdir -p .env
 
-	LOG "Create ${_EXT}.envrc"
-	cp $DIRENV_TEMPLATES/${_EXT}.envrc  .envrc
+	LOCAL_FILE_ENVRC=".envrc"
+	LOCAL_FILE_CONFIG=".env/.envrc"
 
-	LOG "Create ${_EXT}.config"
-	if [[ ! -f ".env/.envrc.ssh-user" ]]; then
-		cp $DIRENV_TEMPLATES/${_EXT}.config .env/.envrc.config
+	MASTER_FILE_CONFIG="$DIRENV_TEMPLATES/${_EXT}.config"
+	MASTER_FILE_ENVRC="$DIRENV_TEMPLATES/${_EXT}.envrc"
+
+	#
+	LOG "Create ${LOCAL_FILE_ENVRC} from $MASTER_FILE_ENVRC"
+	cp $MASTER_FILE_ENVRC ${LOCAL_FILE_ENVRC}
+
+	#
+	if [[ ! -f "$DIRENV_FILE_CONFIG" ]]; then
+		LOG "Create ${DIRENV_FILE_CONFIG} from $MASTER_FILE_CONFIG"
+		cp $MASTER_FILE_CONFIG $DIRENV_FILE_CONFIG
+	else
+		LOG "Already exists: ${DIRENV_FILE_CONFIG}"
 	fi
 
-	if [[ ! -f ".env/.envrc.ssh-user" ]]; then
-		LOG "Create ${_EXT}.ssh-user"
-		echo "r14r" >.env/.envrc.ssh-user
+	#
+	if [[ ! -f "$DIRENV_FILE_SSHUSR" ]]; then
+		LOG "Create ${DIRENV_FILE_SSHUSR} for ${DIRENV_USER}"
+		echo "$DIRENV_USER" >$DIRENV_FILE_SSHUSR
+	else
+		LOG "Already exists: ${DIRENV_FILE_SSHUSR}"
 	fi
 }
 
 #------------------------------------------------------------------------------------------
 ssh_agent_start() {
-	_START=${#SSH_ENV}
+	_START=${#DIRENV_FILE_SSHENV}
 	_REL_PATH="${DIRENV_HOME:$_START}"
 
 	status  "SSH" "Start"     ""				"$_REL_PATH"
-	/usr/bin/ssh-agent | sed 's/^echo/#echo/' >"${SSH_ENV}"
+	/usr/bin/ssh-agent | sed 's/^echo/#echo/' >"${DIRENV_FILE_SSHENV}"
 
-	chmod 600 "${SSH_ENV}"
-	. "${SSH_ENV}" >/dev/null
+	chmod 600 "${DIRENV_FILE_SSHENV}"
+	. "${DIRENV_FILE_SSHENV}" >/dev/null
 }
 
 #------------------------------------------------------------------------------------------
 ssh_agent_status() {
-	_START=${#SSH_ENV}
+	_START=${#DIRENV_FILE_SSHENV}
 	_REL_PATH="${DIRENV_HOME:$_START}"
 
-	if [[ ! -f "${SSH_ENV}" ]]; then
+	if [[ ! -f "${DIRENV_FILE_SSHENV}" ]]; then
 		status  "SSH" "NO SSH Environment"	""					"$_REL_PATH"
 	else
 		status  "SSH" "SSH Environment"	"$SSH_AGENT_PID"		"$_REL_PATH"
-		. "${SSH_ENV}" > /dev/null
+		. "${DIRENV_FILE_SSHENV}" > /dev/null
 
-		cat "${SSH_ENV}"
+		cat "${DIRENV_FILE_SSHENV}"
 		ps -ef | grep $SSH_AGENT_PID
 	fi
 }
 
 #------------------------------------------------------------------------------------------
 ssh_agent_stop() {
-	_START=${#SSH_ENV}
+	_START=${#DIRENV_FILE_SSHENV}
 	_REL_PATH="${DIRENV_HOME:$_START}"
 
-	if [[ ! -f "${SSH_ENV}" ]]; then
+	if [[ ! -f "${DIRENV_FILE_SSHENV}" ]]; then
 		status  "SSH" "NO SSH Environment"	""					"$_REL_PATH"
 	else
-		. "${SSH_ENV}" > /dev/null
+		. "${DIRENV_FILE_SSHENV}" > /dev/null
 
 		ps $SSH_AGENT_PID 1>&- 2>&-
 		_RC=$?
@@ -521,13 +617,14 @@ ssh_agent_stop() {
 			status  "SSH" "Stop"		"$SSH_AGENT_PID"	"$_REL_PATH"
 			kill -9 $SSH_AGENT_PID
 
-			rm -f "${SSH_ENV}"
+			rm -f "${DIRENV_FILE_SSHENV}"
 		else
 			status  "SSH" "SSH Agent"		"NO running agent"	"$_REL_PATH"
 		fi
 	fi
 
 }
+
 
 #------------------------------------------------------------------------------------------
 	VERBOSE=false
@@ -537,6 +634,7 @@ ssh_agent_stop() {
 	OPT_YSN_INFO=NO
 	OPT_YSN_HELP=NO
 
+	OPT_MODE=MISSING
 	OPT_TYPE=MISSING
 
 	OPT_VERSION_USE_LATEST=NO
@@ -555,8 +653,9 @@ ssh_agent_stop() {
 	L_OPTS="$L_OPTS,list,update,check"
 	L_OPTS="$L_OPTS,init:"
 	L_OPTS="$L_OPTS,install:,install-version:,install-defaults,with-defaults"
-	L_OPTS="$L_OPTS,ssh-start,ssh-stop,ssh-status"
-	L_OPTS="$L_OPTS,show-config,edit-config,install-config,save-config-as-master"
+	L_OPTS="$L_OPTS,ssh,ssh-start,ssh-stop,ssh-status"
+	L_OPTS="$L_OPTS,envrc,edit-envrc,install-envrc,save-envrc"
+	L_OPTS="$L_OPTS,config,show-config,edit-config,install-config,save-config"
 	L_OPTS="$L_OPTS,force"
 
 	OPTS=$($CMD_GETOPT --options "$S_OPTS"--longoptions "$L_OPTS"	-- "$@")
@@ -565,43 +664,65 @@ ssh_agent_stop() {
 	shift
 
 	while [[ $# -gt 0 ]]; do
+		_P1="${1:-MISSING}"
+		_P2="${2:-}"
+
 		case "$1" in
-			-v | --verbose)			VERBOSE=true;							;;
-			-d | --debug)			DEBUGLEVEL="$2";				shift		;;
+			-v | --verbose)				VERBOSE=true;							;;
+			-d | --debug)				DEBUGLEVEL="$_P2";				shift		;;
 
-			--help)				OPT_YSN_HELP=YES						;;
-			--version)			OPT_YSN_VERSION=YES						;;
-			--info)				OPT_YSN_INFO=YES						;;
+			--help)					OPT_YSN_HELP=YES;						;;
+			--version|version)			OPT_YSN_VERSION=YES;						;;
+			--info|info)				OPT_YSN_INFO=YES;						;;
 
-			--update)			OPT_MODE=update							;;
-			--check)			OPT_MODE=check							;;
+			--update|update)			OPT_MODE=update;						;;
+			--check|check)				OPT_MODE=check;							;;
 
-			--force)			OPT_FORCE=YES							;;
+			--force)				OPT_FORCE=YES;							;;
 
-			--list)				OPT_MODE=list							;;
-			--init)				OPT_MODE=init;		OPT_TYPE="$2";		shift		;;
-			--install)			OPT_MODE=install;	OPT_TYPE="$2";		shift		;;
+			--list|list)				OPT_MODE=list;							;;
+			--init|init)				OPT_MODE=init;		OPT_TYPE="$_P2";	shift		;;
+			--install|install)			OPT_MODE=install;	OPT_TYPE="$_P2";	shift		;;
 	
-			--install-version)		OPT_VERSION="$2";				shift		;;
-			--with-defaults)		OPT_WITH_DEFAULTS=YES						;;
+			--install-version)			OPT_VERSION="$_P2";				shift		;;
+			--with-defaults)			OPT_WITH_DEFAULTS=YES						;;
 	
-			--install-defaults)		OPT_MODE=install_defaults					;;
+			--install-defaults)			OPT_MODE=install_defaults					;;
 
-			--ssh-start)			OPT_MODE=ssh-start						;;
-			--ssh-stop)			OPT_MODE=ssh-stop						;;
-			--ssh-status)			OPT_MODE=ssh-status						;;
+			--ssh|ssh)				OPT_MODE=ssh-$_P2						;;
+			--ssh-start)				OPT_MODE=ssh-start						;;
+			--ssh-stop)				OPT_MODE=ssh-stop						;;
+			--ssh-status)				OPT_MODE=ssh-status						;;
 
-			--show-config)			OPT_MODE=show-config						;;
-			--edit-config)			OPT_MODE=edit-config						;;
-			--install-config)		OPT_MODE=install-default-config					;;
-			--save-config-as-master)	OPT_MODE=save-config-as-master					;;
+			--show|show)				OPT_MODE=${_P2}-show;				shift		;;
 
-			--)										shift;	break	;;
-			*)				do_error "Unknown option '$1'";				break	;;
+			--envrc|envrc)				OPT_MODE=envrc-${_P2};				shift		;;
+			--show-envrc|show-envrc)		OPT_MODE=envrc-show						;;
+			--edit-envrc|edit-envrc)		OPT_MODE=envrc-edit						;;
+			--install-envrc|install-envrc)		OPT_MODE=envrc-install						;;
+			--save-envrc|save-envrc)		OPT_MODE=envrc-save;						;;
+
+			--config|config)			OPT_MODE=config-${_P2};				shift		;;
+			--show-config|show-config)		OPT_MODE=config-show						;;
+			--edit-config|edit-config)		OPT_MODE=config-edit						;;
+			--install-config|install-config)	OPT_MODE=config-install						;;
+			--save-config|save-config)		OPT_MODE=config-save;						;;
+
+			--)											shift;	break	;;
+			*)					error "Unknown option '$_P1'";			break	;;
 		esac
 	
 		shift
 	done
+
+#------------------------------------------------------------------------------------------
+	debug 4 "DIRENV_ROOT        = $DIRENV_ROOT"
+	debug 4 "DIRENV_HOME        = $DIRENV_HOME"
+	debug 4 "DIRENV_USER        = $DIRENV_USER"
+	debug 4 "DIRENV_FILE_CONFIG      = $DIRENV_FILE_CONFIG"
+	debug 4 "DIRENV_FILE_SSHENV = $DIRENV_FILE_SSHENV"
+	debug 4 "DIRENV_FILE_SSHUSR = $DIRENV_FILE_SSHUSR"
+	debug 4 "DIRENV_TEMPLATES   = $DIRENV_TEMPLATES"
 
 #------------------------------------------------------------------------------------------
 	[[ "$OPT_VERSION" = "" ]] && OPT_VERSION=MISSING
@@ -612,63 +733,70 @@ ssh_agent_stop() {
 		OPT_MODE=$OPT_MODE/$OPT_TYPE
 	fi
 
-	[[ $OPT_YSN_HELP    == YES ]] && do_help
-	[[ $OPT_YSN_VERSION == YES ]] && do_version
-	[[ $OPT_YSN_INFO    == YES ]] && do_info
+	[[ $OPT_YSN_HELP    == YES ]] && help
+	[[ $OPT_YSN_VERSION == YES ]] && version
+	[[ $OPT_YSN_INFO    == YES ]] && info
 
 
 	if [[ $OPT_TYPE == node ]]; then
 		if   [[ "$OPT_VERSION" == "MISSING" && "$OPT_YSN_VERSION" == YES ]]; then
-			do_help "Missing Version. Use Parameter --install-version instead of --version"
+			help "Missing Version. Use Parameter --install-version instead of --version"
 		fi
 	fi
 
-	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(do_get_version LTS)
-	elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(do_get_version LATEST)
-	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(do_get_version LTS)
+	if   [[ "$OPT_VERSION" == "MISSING" ]]; then OPT_VERSION=v$(version_get LTS)
+	elif [[ "$OPT_VERSION" == "LATEST"  ]]; then OPT_VERSION=v$(version_get LATEST)
+	elif [[ "$OPT_VERSION" == "LTS"     ]]; then OPT_VERSION=v$(version_get LTS)
 	elif [[ "$OPT_VERSION{0:1}" != "v"  ]]; then OPT_VERSION=v$OPT_VERSION
 	fi
 
-	#echo "VERSION         = $_DEPLOY_VERSION"
-	#echo "OPT_YSN_HELP    = $OPT_YSN_HELP"
-	#echo "OPT_YSN_VERSION = $OPT_YSN_VERSION"
-	#echo "OPT_MODE        = $OPT_MODE"
-	#echo "OPT_TYPE        = $OPT_TYPE"
-	#echo "OPT_VERSION     = $OPT_VERSION"
+	debug 4 "VERSION         = $_DEPLOY_VERSION"
+	debug 4 "OPT_YSN_HELP    = $OPT_YSN_HELP"
+	debug 4 "OPT_YSN_VERSION = $OPT_YSN_VERSION"
+	debug 4 "OPT_MODE        = $OPT_MODE"
+	debug 4 "OPT_TYPE        = $OPT_TYPE"
+	debug 4 "OPT_VERSION     = $OPT_VERSION"
 
 	case $OPT_MODE in
-		init)				do_init			$OPT_TYPE		;;
+		init)				init				$OPT_TYPE	;;
 		update)				do_self_update					;;
 		check)				do_self_check					;;
 
-		version)			do_version					;;
-		help)				do_help						;;
+		version)			version;					;;
+		help)				help;						;;
 
-		install/node)			do_install_node			$OPT_VERSION	;;
-		install/nodejs)			do_install_node			$OPT_VERSION	;;
-		install/yarn)			do_install_yarn			$OPT_VERSION	;;
+		install/node)			install_node			$OPT_VERSION	;;
+		install/nodejs)			install_node			$OPT_VERSION	;;
+		install/yarn)			install_yarn			$OPT_VERSION	;;
 
-		install/angular)		do_install_angular		$OPT_VERSION	;;
-		install/angular_only)		do_install_angular_only		$OPT_VERSION	;;
+		install/angular)		install_angular			$OPT_VERSION	;;
+		install/angular_only)		install_angular_only		$OPT_VERSION	;;
 
-		install/ionic)			do_install_ionic		$OPT_VERSION	;;
-		install/ionic_only)		do_install_ionic_only		$OPT_VERSION	;;
+		install/ionic)			install_ionic			$OPT_VERSION	;;
+		install/ionic_only)		install_ionic_only		$OPT_VERSION	;;
 
-		install/python)			do_install_python				;;
-		install_defaults)		do_install_defaults				;;
+		install/python)			install_python					;;
+		install_defaults)		install_defaults				;;
 
-		show-config)			config_show					;;
-		edit-config)			config_edit					;;
-		install-config)			config_install					;;
+		config-install|install/config)	config_install					;;
+		config-load)			config_load					;;
+		config-show)			config_show					;;
+		config-edit)			config_edit					;;
+		config-install)			config_install					;;
+		config-save)			config_save;					;;
 
-		save-config-as-master)		config_save_as_master				;;
+		envrc-install|install/envrc)	envrc_install					;;
+		envrc-load)			envrc_load					;;
+		envrc-edit)			envrc_edit					;;
+		envrc-install)			envrc_install					;;
+		envrc-save)			envrc_save;					;;
 
-		list)				do_get_version					;;
+		list)				version_get					;;
 
 		ssh-start)			ssh_agent_start					;;
 		ssh-stop)			ssh_agent_stop					;;
 		ssh-status)			ssh_agent_status				;;
 
-		*)				do_error "Unknown option '$OPT_MODE'"		;;
+		*)				error "Unknown option '$OPT_MODE'"		;;
 	esac
 
