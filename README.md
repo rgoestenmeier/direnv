@@ -1,6 +1,6 @@
 # Extending direnv
 
-## TL;DR
+## Introduction
 
 Switching between development environments
 
