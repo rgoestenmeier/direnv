@@ -3,32 +3,28 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.0.2-02
+	_DEPLOY_VERSION=2.0.6-01
 
 #------------------------------------------------------------------------------------------
-	THIS="$0"
 	HERE="$PWD"
 
+	THIS="$0"
 	[[ -h "$THIS" ]] && THIS="$(readlink "$THIS")"
 
 	SELF="$(basename "$0")"
 
-	DIRENV_ROOT="$(cd $(dirname "$THIS")/..; pwd)"
-	#DIRENV_ROOT="$(cd "$HERE"/..; pwd)"
-	DIRENV_TEMPLATES=$DIRENV_ROOT/etc/templates
-	DIRENV_HOME="$(direnv status | grep 'Loaded RC path' | cut -d' ' -f4- | xargs -I{} dirname {})"
+	DIRENV_ROOT="$(direnv status | grep 'Loaded RC path' | cut -d' ' -f4- | xargs -I{} dirname {})"
+	DIRENV_SCRIPT="$(which $SELF)"
 
-	if [[ "$DIRENV_HOME" == "" ]]; then
-		DIRENV_HOME="$PWD"
+	if [[ "$DIRENV_ROOT" == "" ]]; then
+		DIRENV_ROOT="$PWD"
 	fi
+	DIRENV_HOME="$DIRENV_ROOT/.env"
 
 	#
-	DIRENV_HOME="$DIRENV_HOME/.env"
-	DIRENV_BASE="$(cd $DIRENV_HOME/..; pwd)"
+	DIRENV_FILE_ENVRC="$DIRENV_ROOT/.envrc"
 
-	#
 	DIRENV_FILE_CONFIG="$DIRENV_HOME/.envrc.config"
-	DIRENV_FILE_ENVRC="$DIRENV_BASE/.envrc"
 	DIRENV_FILE_SSHENV="$DIRENV_HOME/.ssh-environment"
 	DIRENV_FILE_SSHUSR="$DIRENV_HOME/.ssh-user"
 
@@ -36,12 +32,22 @@
 	DIRENV_USER="$(basename "$PWD")"
 	DIRENV_USER_SSH="$(cat $DIRENV_FILE_SSHUSR 2>&-)"
 
+	#
+	MASTER_ROOT="$(cd $(dirname "$THIS")/..; pwd)"
+	MASTER_SCRIPT="$MASTER_ROOT/bin/$SELF"
+	MASTER_FLDR_TEMPLATES="$MASTER_ROOT/etc/templates"
+	MASTER_FILE_ENVRC="$MASTER_FLDR_TEMPLATES/master.envrc"
+	MASTER_FILE_CONFIG="$MASTER_FLDR_TEMPLATES/master.config"
 
-	SCRIPT_CURRENT="$(which $SELF)"
-	SCRIPT_MASTER="$DIRENV_ROOT/bin/direnv_cli"
+	#
+	DEPLOY_ROOT="${MASTER_ROOT}.Repository"
+	DEPLOY_SCRIPT="$DEPLOY_ROOT/bin/$SELF"
+	DEPLOY_FLDR_TEMPLATES=$DEPLOY_ROOT/etc/templates
+	DEPLOY_FILE_ENVRC="$DEPLOY_ROOT/etc/templates/master.envrc"
+	DEPLOY_FILE_CONFIG="$DEPLOY_ROOT/etc/templates/master.config"
 
 #------------------------------------------------------------------------------------------
-	YARN_ROOT=/Users/Shared/CLOUD/Development.Yarn
+	YARN_GLOBAL_ROOT=/Users/Shared/CLOUD/Development.Yarn
 
 #------------------------------------------------------------------------------------------
 DEBUGLEVEL=0
@@ -54,47 +60,234 @@ debug() {
 	fi
 }
 
+#------------------------------------------------------------------------------
+        fg_black=30	; bg_black=40
+        fg_red=31	; bg_red=41
+        fg_green=32	; bg_green=42
+        fg_yellow=33	; bg_yellow=43
+        fg_blue=34	; bg_blue=44
+        fg_magenta=35	; bg_magenta=45
+        fg_cyan=36	; bg_cyan=46
+        fg_white=37	; bg_white=47
+
+
+	do_normal=0
+	do_bold=1
+	do_underline=4
+	do_blink=5
+	do_reverse=7
+
+#------------------------------------------------------------------------------------------
+colorize()
+{
+	debug 7 "colorize: $*"
+
+	local _COLR; _COLR="${1:-RED}"; shift
+        local _LINE; _LINE="$*"
+
+        _COLR="${_COLR^^}"
+
+        _MODE=NORMAL
+        if [[ "${_COLR}" =~ "BG" ]]; then
+                _MODE=BACKGROUND
+                _COLR=${_COLR/_BG}
+        fi
+
+        _WITH_EOL=YES
+        if [[ "${_COLR}" =~ "+" ]]; then
+		_WITH_EOL=NO
+                _COLR=${_COLR/+}
+	fi
+
+        case "$_COLR" in
+                "RED")          _COLR_VAL="${fg_red}"		;;
+                "GREEN")        _COLR_VAL="${fg_green}"		;;
+                "YELLOW")       _COLR_VAL="${fg_yellow}"	;;
+                "BLUE")         _COLR_VAL="${fg_blue}"		;;
+                "MAGENTA")      _COLR_VAL="${fg_magenta}"	;;
+                "CYAN")         _COLR_VAL="${fg_cyan}"		;;
+                "WHITE")        _COLR_VAL="${fg_white}"		;;
+        esac
+
+        [[ "$_MODE" == "BACKGROUND" ]] && ((_COLR_VAL=$_COLR_VAL + 10))
+
+	debug 8 "color is $_COLR"
+
+        case "$_COLR" in
+                "ERROR")        _COLR_ON="${fg_white};${bg_red}"   ; _COLR_OFF=0   ;;
+                "HEADER")       _COLR_ON="${fg_white};${bg_blue}"  ; _COLR_OFF=0   ;;
+                "SUBHEADER")    _COLR_ON="${fg_black};${bg_green}" ; _COLR_OFF=0   ;;
+                "TEXT")         _COLR_ON="${fg_white};${bg_black}" ; _COLR_OFF=0   ;;
+                "INVERSE")      _COLR_ON="${fg_black};${bg_white}" ; _COLR_OFF=0   ;;
+                "HIGHLIGHT")    _COLR_ON="${fg_black};${bg_white}" ; _COLR_OFF=0   ;;
+                *)              _COLR_ON="0;${_COLR_VAL}"          ; _COLR_OFF=0   ;;
+        esac
+
+	if   [[ "$_WITH_EOL" == NO ]]; then
+		:
+	elif [[ "|HIGHLIGHT|HEADER|SUBHEADER|INVERSE|ERROR|" =~ "$_COLR" ]]; then
+		_LINE="$_LINE"'\e[K'
+	fi
+
+        echo -n -e '\e['${_COLR_ON}'m'"${_LINE}"'\e['${_COLR_OFF}'m'
+	[[ "$_WITH_EOL" == YES ]] && printf "\n"
+}
+
+#------------------------------------------------------------------------------------------
+relpath()
+{
+	local _RELPATH; _RELPATH="${1:-}"
+
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$MASTER_ROOT/#<MASTER>/#")"
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DEPLOY_ROOT/#<DEPLOY>/#")"
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$HOME/#<HOME>/#")"
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DIRENV_HOME/#<DIRENV>/#")"
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DIRENV_HOME\$#<DIRENV>#")"
+
+	echo "$_RELPATH"
+}
+
 #------------------------------------------------------------------------------------------
 status()
 {
-        _P1="${1:-}";		shift
-        _P2="${1:-}";		shift
-        _P3="${1:-}";		shift
-        _P4="${1:-}";		shift
-        _P5="${1:-WITHGROUP}";	shift
+	debug 5 "status:1| $*"
 
+	_TYPE="${1:-LINE}"
+	_TYPE="${_TYPE^^}"
 
-	if [[ "$_P5" == "WITHGROUP" ]]; then
-		printf "%-10s: %-10s %-20s  %s\n" "$_P1" "$_P2" "$_P3" "$_P4"
+	if [[ "|LINE|HIGHLIGHT|HEADER|SUBHEADER|ERROR|" =~ "$_TYPE" ]]; then
+		shift
+	fi
+
+        _P1="${1:-}";	shift
+        _P2="$*"
+
+	debug 6 "status:2| TYPE=$_TYPE P1=$_P1 P2=$_P2"
+
+	if   [[ "|HIGHLIGHT|HEADER|SUBHEADER|ERROR|" =~ "$_TYPE" ]]; then
+		debug 6 "status:3| TYPE=$_TYPE"
+		colorize $_TYPE "$(printf "%-10s %s" "$_P1" "$_P2")"
+	elif [[ "|xLINE|" =~ "$_TYPE" ]]; then
+		debug 6 "status:4| TYPE=$_TYPE"
+		printf "%-10s %s\n"		"$_P1" "$_P2"
 	else
-		printf "%-10s: %-10s %-20s  %s\n" ""     "$_P2" "$_P3" "$_P4"
+		debug 6 "status:5| DEFAULT"
+		printf "%-10s %s%s\n"		"" "$_P1" "$_P2"
 	fi
 }
 
 #------------------------------------------------------------------------------------------
-info() {
-	status "Info"	""
-	status ""	""	"SELF"			"$(relpath "$SELF")"			NOGROUP
-	status ""	""	"VERSION"		"$(relpath "$_DEPLOY_VERSION")"		NOGROUP
-	status "" 	""	"<HOME>"		"$HOME"					NOGROUP
-	status "" 	""	"<DIRENV>"		"$DIRENV_HOME"				NOGROUP
-	status ""	""	"THIS"  		"$(relpath "$THIS")"			NOGROUP
-	status ""	""	"HERE"  		"$(relpath "$HERE")"			NOGROUP
-	status ""	""	"DIRENV_ROOT"		"$(relpath "$DIRENV_ROOT")"		NOGROUP
-	status ""	""	"DIRENV_TEMPLATES"	"$(relpath "$DIRENV_TEMPLATES")"	NOGROUP
-	status ""	""	"DIRENV_BASE"  		"$(relpath "$DIRENV_BASE")"		NOGROUP
-	status ""	""	"DIRENV_HOME"  		"$(relpath "$DIRENV_HOME")"		NOGROUP
+info_with_check()
+{
+	local _P1; _P1="${1:-}"
+	local _P2; _P2="${2:-$_P1}"
+	local _P3; _P3="${3:-$_P2}"
+
+	_TYPE="$(file -b "$_P3" 2>&- | cut -d\; -f1)"
+
+	status "$(printf "%s = %-60s (%s))" "${_P1}" "${_P2}" "$_TYPE")"
+}
+
+#------------------------------------------------------------------------------------------
+run_info() {
+	debug 5 "info:"	""
+
+	status 		HEADER		"INFO"
+	info_with_check			"SELF                  " "$(relpath "$SELF")"			"$SELF"
+	status				"VERSION                = $(relpath "$_DEPLOY_VERSION")"
+	info_with_check			"<HOME>                " "$HOME"
+	info_with_check			"<DIRENV>              " "$DIRENV_HOME"
+	info_with_check			"THIS                  " "$(relpath "$THIS")"			"$THIS"
+	info_with_check			"HERE                  " "$(relpath "$HERE")"			"$HERE"
+
+	info_with_check			"DIRENV_ROOT           " "$(relpath "$DIRENV_ROOT")"		"$DIRENV_ROOT"
+	info_with_check			"DIRENV_HOME           " "$(relpath "$DIRENV_HOME")"		"$DIRENV_HOME"
+	info_with_check			"DIRENV_FILE_SSHUSR    " "$(relpath "$DIRENV_FILE_SSHUSR")"	"$DIRENV_FILE_SSHUSR"
+	info_with_check			"DIRENV_FILE_SSHENV    " "$(relpath "$DIRENV_FILE_SSHENV")"	"$DIRENV_FILE_SSHENV"
+
+	status		SUBHEADER	"DIRENV" "<DIRENV>                 $DIRENV_ROOT"
+	info_with_check			"<DIRENV>              " "$(relpath "$DIRENV_ROOT")"		"$DIRENV_ROOT"
+	info_with_check			"DIRENV_ROOT           " "$(relpath "$DIRENV_ROOT")"		"$DIRENV_ROOT"
+	info_with_check 		"DIRENV_SCRIPT         " "$(relpath "$DIRENV_SCRIPT")"		"$DIRENV_SCRIPT"
+	info_with_check			"DIRENV_FILE_ENVRC     " "$(relpath "$DIRENV_FILE_ENVRC")"	"$DIRENV_FILE_ENVRC"
+	info_with_check			"DIRENV_FILE_CONFIG    " "$(relpath "$DIRENV_FILE_CONFIG")"	"$DIRENV_FILE_CONFIG"
+
+	status		SUBHEADER	"MASTER" "<MASTER>                 $MASTER_ROOT"
+	info_with_check			"MASTER_ROOT           " "$(relpath "$MASTER_ROOT")"		"$MASTER_ROOT"
+	info_with_check 		"MASTER_SCRIPT         " "$(relpath "$MASTER_SCRIPT")"		"$MASTER_SCRIPT"
+	info_with_check 		"MASTER_FLDR_TEMPLATES " "$(relpath "$MASTER_FLDR_TEMPLATES")"	"$MASTER_FLDR_TEMPLATES"
+	info_with_check 		"MASTER_FILE_ENVR      " "$(relpath "$MASTER_FILE_ENVRC")"	"$MASTER_FILE_ENVRC"
+	info_with_check 		"MASTER_FILE_CONFIG    " "$(relpath "$MASTER_FILE_CONFIG")"	"$MASTER_FILE_CONFIG"
+
+	status		SUBHEADER	"DEPLOY" "<DEPLOY>                 $DEPLOY_ROOT"
+	info_with_check 		"DEPLOY_ROOT           " "$(relpath "$DEPLOY_ROOT")"		"$DEPLOY_ROOT"
+	info_with_check 		"DEPLOY_SCRIPT         " "$(relpath "$DEPLOY_SCRIPT")"		"$DEPLOY_SCRIPT"
+	info_with_check 		"DEPLOY_FLDR_TEMPLATES " "$(relpath "$DEPLOY_FLDR_TEMPLATES")"	"$DEPLOY_FLDR_TEMPLATES"
+	info_with_check 		"DEPLOY_FILE_ENVR      " "$(relpath "$DEPLOY_FILE_ENVRC")"	"$DEPLOY_FILE_ENVRC"
+	info_with_check 		"DEPLOY_FILE_CONFIG    " "$(relpath "$DEPLOY_FILE_CONFIG")" 	"$DEPLOY_FILE_CONFIG"
 
 
 	exit
 }
 
 #------------------------------------------------------------------------------------------
-help() {
-	echo "$*"
-	echo " "
+run_intro() {
+	colorize HEADER $SELF - A tool to extend direnv to customize your development environments
 
-	echo "$SELF:"
+	exit 0
+}
+
+#------------------------------------------------------------------------------------------
+run_help() {
+	local _P1; _P1=${1:-MISSING}; shift
+
+	if [[ "${_P1}" != "MISSING" ]]; then
+		colorize ERROR "ERROR: $_P1"
+	else
+		colorize HEADER $SELF
+	fi
+	echo "Get an introduction with: $SELF intro"
+	echo ""
+
+	echo "Available options:"
+
+	cat <<EOH
+
+update <TYPE>			<DIRECTION>
+update [all|script|config]	[""|from-master|from-deploy]
+	Updates script (direnv_cli) and files  (.envrc, .envrc.config)
+
+	Default for TYPE is 'all'. Default for DIRECTION is 'from-master'
+
+	from-master: copy files from master folder to local folder
+                     This means, we update the local  files from the master folder
+
+	from-deploy: copy files from deploy repository to master folder
+                     This means, we update the master files from the deploy repository
+
+
+update <TYPE>			<DIRECTION>
+deploy [all|scrint|envrc|config] [""|to-master|to-deploy]
+	Deploys script (direnv_cli) and files  (.envrc, .envrc.config)
+
+	Default for TYPE is 'all'. Default for DIRECTION is 'from-master'
+
+	to-master: copy files from local folder to master folder
+                   This means, we update the master files from the local folder
+
+	to-deploy: copy files from master folder to deploy repository
+                   This means, we update the deploy repository from the master files
+
+
+	OPTION      | DIRECTION     | DESCRITION
+	------------------------------------------
+	update      | from-master   | Copy local  files from master folder
+	update      | from-deploy   | Copy master files from deploy repository
+	deploy	    | to-master     | Copy local  files to   master folder
+	deploy      | to-deploy	    | Copy master files to   deploy repository
+EOH
+
+	exit
 
 	echo $L_OPTS | tr ',' '\n' | while read _LINE
 	do
@@ -114,29 +307,25 @@ help() {
 }
 
 #------------------------------------------------------------------------------------------
-version() {
-	echo "$SELF: Version CLI    $_DEPLOY_VERSION"
-	echo "$SELF: Version Config $DIRENV_FILE_CONFIG"
+run_version() {
+	local _DIRENV_CONFIG_VERSION="$(grep -E '^\s+_DEPLOY_VERSION='  $DIRENV_FILE_ENVRC | cut -d= -f2)"
+	local _MASTER_CONFIG_VERSION="$(grep -E '^\s+_DEPLOY_VERSION='  $MASTER_FILE_ENVRC | cut -d= -f2)"
+
+	local _LEN; _LEN=${#SELF}
+	local _PFX; _PFX="                        "; _PFX=${_PFX:0:$_LEN}
+
+	echo "$SELF: CLI    $_DEPLOY_VERSION"
+	echo "$_PFX  .envrc $_DIRENV_CONFIG_VERSION ($_MASTER_CONFIG_VERSION)"
 	exit 0
 }
 
 #------------------------------------------------------------------------------------------
 error() {
-	echo "ERROR: $*"
+	colorize ERROR ERROR: $*
 	exit 0
 }
 
 
-relpath()
-{
-	local _RELPATH; _RELPATH="${1:-}"
-
-	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DIRENV_HOME/#<DIRENV>/#")"
-	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DIRENV_HOME\$#<DIRENV>#")"
-	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$HOME/#<HOME>/#")"
-
-	echo "$_RELPATH"
-}
 
 #echo "$HOME/xyz:	$(relpath $HOME/yxz)"
 #echo "$DIRENV_ROOT:	$(relpath $DIRENV_ROOT)"
@@ -171,7 +360,7 @@ envrc_save()
 
 	#
 	_DIRENV_FILE_ENVRC=".envrc"
-	_MASTER_FILE_ENVRC="$DIRENV_TEMPLATES/master.envrc"
+	_MASTER_FILE_ENVRC="$MASTER_ROOT/etc/template/master.envrc"
 
 	LOG "Copy '$_DIRENV_FILE_ENVRC' to '$_MASTER_FILE_ENVRC'"
 
@@ -247,8 +436,8 @@ config_install()
 	fi
 
 	if [[ "$_YSN_INSTALL" == "YES" ]]; then
-		cp $DIRENV_TEMPLATES/${_EXT}.config $DIRENV_FILE_CONFIG
-		LOG "Installed: $DIRENV_TEMPLATES/${_EXT}.config"
+		cp $MASTER_FLDR_TEMPLATES/${_EXT}.config $DIRENV_FILE_CONFIG
+		LOG "Installed: $MASTER_FLDR_TEMPLATES/${_EXT}.config"
 
 		config_show
 	fi
@@ -271,9 +460,9 @@ config_save()
 	fi
 
 	if [[ "$_YSN_SAVE" == "YES" ]]; then
-		cp $_FILE $DIRENV_TEMPLATES/${_EXT}.config
-		cp $_FILE $DIRENV_TEMPLATES/${_EXT}.config.${_VERSION}
-		LOG "Done: $DIRENV_TEMPLATES/${_EXT}.config"
+		cp $_FILE $MASTER_FLDR_TEMPLATES/${_EXT}.config
+		cp $_FILE $MASTER_FLDR_TEMPLATES/${_EXT}.config.${_VERSION}
+		LOG "Done: $MASTER_FLDR_TEMPLATES/${_EXT}.config"
 	fi
 }
 
@@ -305,55 +494,182 @@ version_get() {
 		else
 			_FILTER="sed -n 2,10p"
 		fi
-	
+
 		curl -s http://nodejs.org/dist/index.tab | sed '1,$s/^v//' |  awk '{ print $1 }' | $_FILTER
 	fi
 }
 
 #------------------------------------------------------------------------------------------
 do_show_versions() {
-		_FILTER="sed -n 2,10p"
-		curl -s http://nodejs.org/dist/index.tab | sed '1,$s/^v//' |  awk '{ print $1 }' | $_FILTER
+	debug 5 "do_show_version:"
+
+	_FILTER="sed -n 2,10p"
+	curl -s http://nodejs.org/dist/index.tab | sed '1,$s/^v//' |  awk '{ print $1 }' | $_FILTER
 }
 
 #------------------------------------------------------------------------------------------
-do_self_update() {
-	if [[ -d "$DIRENV_ROOT/.git" ]]; then
-		status "Update" "" "$DIRENV_ROOT"
-		cd "$DIRENV_ROOT"
-		git pull
-		exit
+do_update() {
+	debug 5 "do_update:1 | $*"
+
+	local _TYPE; _TYPE="${1:-MISSING}"; _TYPE="${_TYPE^^}";	shift
+	local _MODE; _MODE="${1:-MISSING}"; _MODE="${_MODE^^}";	shift
+	local _FILE; _FILE="${1:-MISSING}"; _FILE="${_FILE^^}";	shift
+
+	#
+	debug 6 "do_update:2 | TYPE=$_TYPE MODE=$_MODE FILE=$_FILE"
+
+
+	case "$_FILE" in
+		SCRIPT)		info_with_check "DIRENV_SCRIPT         " "$(relpath "$DIRENV_SCRIPT")"		"$DIRENV_SCRIPT"
+				info_with_check "MASTER_SCRIPT         " "$(relpath "$MASTER_SCRIPT")"		"$MASTER_SCRIPT"
+				info_with_check "DEPLOY_SCRIPT         " "$(relpath "$DEPLOY_SCRIPT")"		"$DEPLOY_SCRIPT"
+				;;
+
+		ENVRC)		info_with_check	"DIRENV_FILE_ENVRC     " "$(relpath "$DIRENV_FILE_ENVRC")"	"$DIRENV_FILE_ENVRC"
+				info_with_check "DEPLOY_FILE_ENVRC     " "$(relpath "$DEPLOY_FILE_ENVRC")"	"$DEPLOY_FILE_ENVRC"
+				info_with_check "MASTER_FILE_ENVRC     " "$(relpath "$MASTER_FILE_ENVRC")"	"$MASTER_FILE_ENVRC"
+				;;
+
+		CONFIG)		info_with_check	"DIRENV_FILE_CONFIG    " "$(relpath "$DIRENV_FILE_CONFIG")"	"$DIRENV_FILE_CONFIG"
+				info_with_check "MASTER_FILE_CONFIG    " "$(relpath "$MASTER_FILE_CONFIG")"	"$MASTER_FILE_CONFIG"
+				info_with_check "DEPLOY_FILE_CONFIG    " "$(relpath "$DEPLOY_FILE_CONFIG")" 	"$DEPLOY_FILE_CONFIG"
+				;;
+		*)
+				;;
+	esac
+}
+
+#------------------------------------------------------------------------------------------
+run_update_or_deploy() {
+	debug 5 "run_update_or_deploy:1 | $*"
+
+	local _MODE; _MODE="${1:-MISSING}"; _MODE="${_MODE^^}"; shift
+	local _TYPE; _TYPE="${1:-MISSING}"; _TYPE="${_TYPE^^}"; shift
+	local _PARM; _PARM="$*"
+
+	#
+	case "$_MODE/$_PARM" in
+		UPDATE/FROM-MASTER)	_SRC=MASTER; _DST=LOCAL					;;
+		UPDATE/FROM-DEPLOY)	_SRC=DEPLOY; _DST=MASTER				;;
+		UPDATE/TO-MASTER)	_SRC=LOCAL ; _DST=MASTER				;;
+		UPDATE/TO-DEPLOY)	_SRC=MASTER; _DST=DEPLOY				;;
+
+		DEPLOY/FROM-MASTER)	_SRC=MASTER; _DST=DEPLOY				;;
+		DEPLOY/FROM-LOCAL)	_SRC=LOCAL ; _DST=MASTER				;;
+		DEPLOY/TO-MASTER)	_SRC=LOCAL ; _DST=MASTER				;;
+		DEPLOY/TO-DEPLOY)	_SRC=MASTER; _DST=DEPLOY				;;
+
+	esac
+	debug 6 "run_update_or_deploy:2 | TYPE=$_TYPE MODE=$_MODE PARM=$_PARM SRC=$_SRC DST=$_DST"
+
+
+	colorize HEADER "Update $SELF $_MODE $_TYPE from $_SRC to $_DST"
+
+	debug 6 "run_update_or_deploy:3 | check type ($_TYPE) for SCRIPT"
+	if [[ "|MISSING|ALL|SCRIPT|" =~ "$_TYPE" ]]; then
+		colorize SUBHEADER "Update SCRIPT"
+
+		do_update $_MODE $_TYPE
+	fi
+
+	debug 6 "run_update_or_deploy:4 | check type ($_TYPE) for ENVRC"
+	if [[ "|MISSING|ALL|ENVRC|" =~ "$_TYPE" ]]; then
+		colorize SUBHEADER "Update ENVRC"
+
+		do_update $_MODE $_TYPE
+	fi
+
+	debug 6 "run_update_or_deploy:5 | check type ($_TYPE) for CONFIG"
+	if [[ "|MISSING|ALL|CONFIG|" =~ "$_TYPE" ]]; then
+		colorize SUBHEADER "Update CONFIG"
+
+		do_update update $_MODE	envrc
 	fi
 }
 
-do_self_check_version() {
-	local _TYPE="$1";	shift
-	local _FILE1="$1";	shift
-	local _FILE2="$1";	shift
+do_check_version() {
+	debug 5 "do_check_version:1| $*"
 
-	local _VERSION1="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE1 | cut -d= -f2)"
-	local _VERSION2="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE2 | cut -d= -f2)"
+	local _TITLE="$1";	shift
+	local _FILE_L="$1";	shift
+	local _FILE_M="$1";	shift
+	local _FILE_D="$1";	shift
 
-	if [[ "$_VERSION1"  == "$_VERSION2" ]]; then
-		RESULT=OK
-	else
-		RESULT="DIFF: $_VERSION1 != $_VERSION2"
+	local _VERSION_L="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE_L | cut -d= -f2)"
+	local _VERSION_M="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE_M | cut -d= -f2)"
+	local _VERSION_D="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE_D | cut -d= -f2)"
+
+	debug 6 "do_check_version:2| 1 V=$_VERSION_L F=$_FILE_L"
+	debug 6 "do_check_version:2| 2 V=$_VERSION_M F=$_FILE_M"
+	debug 6 "do_check_version:2| 3 V=$_VERSION_D F=$_FILE_D"
+
+	colorize SUBHEADER "$_TITLE"
+
+	#
+	#
+	status LINE	"LOCAL"		"$_VERSION_L"
+
+	#
+	#
+	_HEADER=LINE
+	_DETAILS=""
+	if [[ "$_VERSION_L"  != "$_VERSION_M" ]]; then
+		_HEADER=ERROR
+		_DETAILS="(show details with option --details)"
+	fi
+	status $_HEADER	"MASTER"	"$_VERSION_M" "$_DETAILS"
+
+	if [[ $OPT_SHOW_DETAILS == YES ]]; then
+		status LINE "$_VERSION_L | $_VERSION_M"
+
+		diff	"$_FILE_L" "$_FILE_M"
 	fi
 
-	status "Check"	" $_TYPE $RESULT"
-	status "" 	" $_VERSION1: $_FILE1"
-	status ""	" $_VERSION2: $_FILE2"
+	#
+	#
+	_HEADER=LINE
+	_DETAILS=""
+	if [[ "$_VERSION_M"  != "$_VERSION_D" ]]; then
+		_HEADER=ERROR
+		_DETAILS="(show details with option --details)"
+	fi
+	status $_HEADER	"DEPLOY"	"$_VERSION_D" "$_DETAILS"
+
+	if [[ $OPT_SHOW_DETAILS == YES ]]; then
+		status LINE "$_VERSION_M  $_VERSION_D"
+
+		diff	"$_FILE_M" "$_FILE_D"
+	fi
 }
 
-do_self_check() {
-	_FILE_CURRENT="$SCRIPT_CURRENT"
-	do_self_check_version direnv_cli 		$_FILE_CURRENT $DIRENV_ROOT/bin/$SELF
-	diff $_FILE_CURRENT $DIRENV_ROOT/bin/$SELF
+#----------------------------------------------------------------------------------------------------
+run_test()
+{
+	debug 5 "run_test:1 | $*"
 
-	_FILE_CURRENT="$(direnv status|grep 'Loaded RC path' | cut -d' ' -f4-)"
-	do_self_check_version .envrc 			$_FILE_CURRENT $DIRENV_TEMPLATES/master.envrc
-	diff $_FILE_CURRENT $DIRENV_TEMPLATES/master.envrc
+	$DIRENV_SCRIPT -d 6 update script from-master | grep run_update_or_deploy:2
+	$DIRENV_SCRIPT -d 6 update script from-deploy | grep run_update_or_deploy:2
+	$DIRENV_SCRIPT -d 6 deploy script to-master   | grep run_update_or_deploy:2
+	$DIRENV_SCRIPT -d 6 deploy script to-deploy   | grep run_update_or_deploy:2
 
+	exit
+}
+
+#----------------------------------------------------------------------------------------------------
+run_check() {
+	debug 5 "run_check: $*"
+
+	colorize HEADER "Check files (L=local, M=Master, D=Deploy)"
+
+	do_check_version "Check command line script: direnc_cli"	\
+			"$DIRENV_SCRIPT"				\
+			"$MASTER_ROOT/bin/$SELF"			\
+			"$DEPLOY_ROOT/bin/$SELF"
+
+	do_check_version "Check .envrc script" 				\
+			"$DIRENV_FILE_ENVRC"				\
+			"$MASTER_FLDR_TEMPLATES/master.envrc"		\
+			"$DEPLOY_FLDR_TEMPLATES/master.envrc"
 }
 
 #------------------------------------------------------------------------------------------
@@ -371,6 +687,8 @@ install_defaults() {
 
 	local _FOLDER=$DIRENV_HOME/node/$_VERSION
 	local _CONFIG=$DIRENV_FILE_CONFIG
+
+	status HEADER "Install Defaults"
 
 	PATH=$_FOLDER/bin:$PATH
 
@@ -392,6 +710,8 @@ install_python() {
 
 	install_check
 
+	status HEADER "Install Python"
+
 	LOG "Create venv in $_FOLDER/python"
 	python3 -m venv $_FOLDER/python
 
@@ -411,7 +731,7 @@ install_node() {
 
 	local _LINK=http://nodejs.org/dist/${_VERSION}/node-${_VERSION}-${_OS}-x64.tar.gz
 
-	echo $_LINK
+	status HEADER "Install NodeJS from $_LINK"
 
 	install_check
 
@@ -419,8 +739,6 @@ install_node() {
 	local _TARFILE=$(basename "$_LINK")
 	local _TARFLDR=$DIRENV_ROOT/cache
 	local _TARPATH=$_TARFLDR/$_TARFILE
-
-	install_check
 
 	if [[ -f "$_TARPATH" ]]; then
 		LOG "Use cached NodeJS archiv for version $_VERSION"
@@ -456,14 +774,16 @@ install_yarn() {
 
 	install_check
 
+	status HEADER "Install Yarn"
+
 	LOG "Install yarn"
 	npm --silent -g install yarn
 
 	LOG "Set Yarn Global Folder to ${_FOLDER}"
 	yarn --silent config set global-folder ${_FOLDER}
 
-	LOG "Set Yarn Cache  Folder to ${YARN_ROOT}/cache-folder"
-	yarn --silent config set cache-folder  ${YARN_ROOT}/cache-folder
+	LOG "Set Yarn Cache  Folder to ${YARN_GLOBAL_ROOT}/cache-folder"
+	yarn --silent config set cache-folder  ${YARN_GLOBAL_ROOT}/cache-folder
 
 	yarn config list
 }
@@ -474,6 +794,8 @@ install_angular_only() {
 	local _FOLDER=$DIRENV_HOME/yarn
 
 	install_check
+
+	status HEADER "Install Angular CLI"
 
 	LOG "Install Angular CLI with yarn"
 	yarn --silent global add @angular/cli
@@ -491,6 +813,8 @@ install_ionic_only() {
 	local _FOLDER=$DIRENV_HOME/yarn
 
 	install_check
+
+	status HEADER "Install Ionic"
 
 	LOG "Install Ionic"
 	#yarn --silent global add  ionic
@@ -511,6 +835,8 @@ install_ionic() {
 
 	install_check
 
+	status HEADER "Install Ionic and additional Tools""
+
 	install_python			$_VERSION
 	install_node			$_VERSION
 	install_yarn			$_VERSION
@@ -524,6 +850,8 @@ install_angular() {
 
 	install_check
 
+	status HEADER "Install Angular  and additional Tools""
+
 	install_python			$_VERSION
 	install_node			$_VERSION
 	install_yarn			$_VERSION
@@ -534,42 +862,41 @@ install_angular() {
 
 #------------------------------------------------------------------------------------------
 init() {
-	local _TYPE="${1:-master}"
-
-	local _EXT
-	if [[ -n "$_TYPE"  ]]; then
-		_EXT="${_TYPE}"
-	else
-		_EXT="master"
-	fi
-
-	mkdir -p .env
+	local _EXT="${1:-master}"
 
 	_DIRENV_FILE_ENVRC=".envrc"
 	_DIRENV_FILE_CONFIG=".env/.envrc.config"
 	_DIRENV_FILE_SSHUSR=".env/.ssh-user"
 
-	_MASTER_FILE_ENVRC="$DIRENV_TEMPLATES/${_EXT}.envrc"
-	_MASTER_FILE_CONFIG="$DIRENV_TEMPLATES/${_EXT}.config"
+	_MASTER_FILE_ENVRC="$MASTER_FLDR_TEMPLATES/${_EXT}.envrc"
+	_MASTER_FILE_CONFIG="$MASTER_FLDR_TEMPLATES/${_EXT}.config"
+
+	status HEADER "Initialize"
 
 	#
-	LOG "Create ${_DIRENV_FILE_ENVRC} from $_MASTER_FILE_ENVRC"
+	mkdir -p .env
+
+	#
+	LOG "Create ${_DIRENV_FILE_ENVRC} from Master: $_MASTER_FILE_ENVRC"
 	cp $_MASTER_FILE_ENVRC ${_DIRENV_FILE_ENVRC}
+	[[ ! -f $_DIRENV_FILE_ENVRC ]] && error "copy not successfull: $_DIRENV_FILE_ENVRC"
 
 	#
-	if [[ ! -f "$_DIRENV_FILE_CONFIG" ]]; then
-		LOG "Create ${_DIRENV_FILE_CONFIG} from $MASTER_FILE_CONFIG"
-		cp $_MASTER_FILE_CONFIG $_DIRENV_FILE_CONFIG
-	else
+	if [[ -f "$_DIRENV_FILE_CONFIG" ]]; then
 		LOG "Already exists: ${_DIRENV_FILE_CONFIG}"
+	else
+		LOG "Create ${_DIRENV_FILE_CONFIG} from Master: $_MASTER_FILE_CONFIG"
+		cp $_MASTER_FILE_CONFIG $_DIRENV_FILE_CONFIG
+
+		[[ ! -f $_DIRENV_FILE_CONFIG ]] && error "copy not successfull: $_DIRENV_FILE_CONFIG"
 	fi
 
 	#
 	if [[ ! -f "$_DIRENV_FILE_SSHUSR" ]]; then
-		LOG "Create ${_DIRENV_FILE_SSHUSR} for ${DIRENV_USER}"
-		echo "$_DIRENV_USER" >$DIRENV_FILE_SSHUSR
-	else
 		LOG "Already exists: ${_DIRENV_FILE_SSHUSR}"
+	else
+		LOG "Create ${_DIRENV_FILE_SSHUSR} for ${DIRENV_USER}"
+		echo "$DIRENV_USER" >$DIRENV_FILE_SSHUSR
 	fi
 }
 
@@ -635,9 +962,13 @@ ssh_agent_stop() {
 	OPT_YSN_VERSION=NO
 	OPT_YSN_INFO=NO
 	OPT_YSN_HELP=NO
+	OPT_YSN_INTRO=NO
+	OPT_YSN_TEST=NO
 
 	OPT_MODE=MISSING
 	OPT_TYPE=MISSING
+
+	OPT_DIRECTION=MISSING
 
 	OPT_VERSION_USE_LATEST=NO
 
@@ -645,20 +976,22 @@ ssh_agent_stop() {
 	OPT_WITH_DEFAULTS=NO
 
 	OPT_FORCE=NO
+	OPT_SHOW_DETAILS=NO
 
 #------------------------------------------------------------------------------------------
 	CMD_GETOPT=/usr/local/opt/gnu-getopt/bin/getopt
 	CMD_GETOPT=getopt
 
 	S_OPTS="vdm:"
-	L_OPTS="verbose,debug,help,version, info"
-	L_OPTS="$L_OPTS,list,update,check"
+
+	L_OPTS="verbose,debug,help,version,info,intro"
+	L_OPTS="$L_OPTS,list,update:,check"
 	L_OPTS="$L_OPTS,init:"
 	L_OPTS="$L_OPTS,install:,install-version:,install-defaults,with-defaults"
 	L_OPTS="$L_OPTS,ssh,ssh-start,ssh-stop,ssh-status"
 	L_OPTS="$L_OPTS,envrc,edit-envrc,install-envrc,save-envrc"
 	L_OPTS="$L_OPTS,config,show-config,edit-config,install-config,save-config"
-	L_OPTS="$L_OPTS,force"
+	L_OPTS="$L_OPTS,force,details"
 
 	OPTS=$($CMD_GETOPT --options "$S_OPTS"--longoptions "$L_OPTS"	-- "$@")
 
@@ -671,18 +1004,23 @@ ssh_agent_stop() {
 
 		_P2="${2:-}"
 
-		case "$1" in
-			-v | --verbose)		VERBOSE=true;							;;
-			-d | --debug)		DEBUGLEVEL="$_P2";				shift		;;
+		debug 4 "P1=$_P1 P2=$_P2"
 
+		case "$_P1" in
+			-v | verbose)		VERBOSE=true;							;;
+			-d | debug)		DEBUGLEVEL="$_P2";				shift		;;
+
+			intro)			OPT_YSN_INTRO=YES;						;;
 			help)			OPT_YSN_HELP=YES;						;;
 			version)		OPT_YSN_VERSION=YES;						;;
 			info)			OPT_YSN_INFO=YES;						;;
 
 			update)			OPT_MODE=update;						;;
+			deploy)			OPT_MODE=deploy;						;;
 			check)			OPT_MODE=check;							;;
 
 			force)			OPT_FORCE=YES;							;;
+			details)		OPT_SHOW_DETAILS=YES;						;;
 
 			list)			OPT_MODE=list;							;;
 			init)			OPT_MODE=init;		OPT_TYPE="$_P2";	shift		;;
@@ -690,7 +1028,8 @@ ssh_agent_stop() {
 
 			version)		OPT_VERSION="$_P2";				shift		;;
 			with-defaults)		OPT_WITH_DEFAULTS=YES						;;
-	
+
+			install-version)	OPT_VERSION="$_P2";				shift		;;
 			install-defaults)	OPT_MODE=install_defaults					;;
 
 			ssh)			OPT_MODE=ssh-$_P2						;;
@@ -698,7 +1037,8 @@ ssh_agent_stop() {
 			ssh-stop)		OPT_MODE=ssh-stop						;;
 			ssh-status)		OPT_MODE=ssh-status						;;
 
-			show)			OPT_MODE=${_P2}-show;				shift		;;
+			show)			[[ -n $_P2 ]] && _P2="${_P2}-"
+						OPT_MODE=${_P2}show;				shift		;;
 
 			envrc)			OPT_MODE=envrc-${_P2};				shift		;;
 			show-envrc)		OPT_MODE=envrc-show						;;
@@ -709,13 +1049,27 @@ ssh_agent_stop() {
 			config)			OPT_MODE=config-${_P2};				shift		;;
 			show-config)		OPT_MODE=config-show						;;
 			edit-config)		OPT_MODE=config-edit						;;
-			install-config)	OPT_MODE=config-install						;;
+			install-config)		OPT_MODE=config-install						;;
 			save-config)		OPT_MODE=config-save;						;;
 
-			--)											shift;	break	;;
-			*)					error "Unknown option '$_P1'";			break	;;
+
+			#
+			script)			OPT_TYPE=SCRIPT;						;;
+			config)			OPT_TYPE=CONFIG;						;;
+
+			to-local)		OPT_DIRECTION="${_P1^^}";			shift		;;
+			to-master)		OPT_DIRECTION="${_P1^^}";			shift		;;
+			to-deploy)		OPT_DIRECTION="${_P1^^}";			shift		;;
+
+			from-master)		OPT_DIRECTION="${_P1^^}";			shift		;;
+			from-deploy)		OPT_DIRECTION="${_P1^^}";			shift		;;
+
+			test)			OPT_YSN_TEST=YES;				shift		;;
+
+			--)									shift;	break	;;
+			*)			error "Unknown option '$_P1'";			break	;;
 		esac
-	
+
 		shift
 	done
 
@@ -726,7 +1080,7 @@ ssh_agent_stop() {
 	debug 4 "DIRENV_FILE_CONFIG      = $DIRENV_FILE_CONFIG"
 	debug 4 "DIRENV_FILE_SSHENV = $DIRENV_FILE_SSHENV"
 	debug 4 "DIRENV_FILE_SSHUSR = $DIRENV_FILE_SSHUSR"
-	debug 4 "DIRENV_TEMPLATES   = $DIRENV_TEMPLATES"
+	debug 4 "MASTER_FLDR_TEMPLATES   = $MASTER_FLDR_TEMPLATES"
 
 #------------------------------------------------------------------------------------------
 	[[ "$OPT_VERSION" = "" ]] && OPT_VERSION=MISSING
@@ -737,14 +1091,16 @@ ssh_agent_stop() {
 		OPT_MODE=$OPT_MODE/$OPT_TYPE
 	fi
 
-	[[ $OPT_YSN_HELP    == YES ]] && help
-	[[ $OPT_YSN_VERSION == YES ]] && version
-	[[ $OPT_YSN_INFO    == YES ]] && info
+	[[ $OPT_YSN_INTRO   == YES ]] && run_intro
+	[[ $OPT_YSN_HELP    == YES ]] && run_help
+	[[ $OPT_YSN_VERSION == YES ]] && run_version
+	[[ $OPT_YSN_INFO    == YES ]] && run_info
+	[[ $OPT_YSN_TEST    == YES ]] && run_test
 
 
 	if [[ $OPT_TYPE == node ]]; then
 		if   [[ "$OPT_VERSION" == "MISSING" && "$OPT_YSN_VERSION" == YES ]]; then
-			help "Missing Version. Use Parameter --install-version instead of --version"
+			run_help "Missing parameter <version>. Use Parameter --install-version instead of --version"
 		fi
 	fi
 
@@ -757,50 +1113,58 @@ ssh_agent_stop() {
 	debug 4 "VERSION         = $_DEPLOY_VERSION"
 	debug 4 "OPT_YSN_HELP    = $OPT_YSN_HELP"
 	debug 4 "OPT_YSN_VERSION = $OPT_YSN_VERSION"
-	debug 4 "OPT_MODE        = $OPT_MODE"
-	debug 4 "OPT_TYPE        = $OPT_TYPE"
 	debug 4 "OPT_VERSION     = $OPT_VERSION"
 
+	debug 4 "OPT_TYPE        = $OPT_TYPE"
+	debug 4 "OPT_DIRECTION   = $OPT_DIRECTION"
+
+	debug 4 "check mode $OPT_MODE"
 	case $OPT_MODE in
-		init)				init				$OPT_TYPE	;;
-		update)				do_self_update					;;
-		check)				do_self_check					;;
+		init)				init				$OPT_TYPE			;;
+		check)				run_check 			$OPT_TYPE			;;
 
-		version)			version;					;;
-		help)				help;						;;
+		update|deploy)			run_update_or_deploy $OPT_MODE	$OPT_TYPE	$OPT_DIRECTION	;;
 
-		install/node)			install_node			$OPT_VERSION	;;
-		install/nodejs)			install_node			$OPT_VERSION	;;
-		install/yarn)			install_yarn			$OPT_VERSION	;;
+		version)			version;							;;
+		help)				run_help;							;;
 
-		install/angular)		install_angular			$OPT_VERSION	;;
-		install/angular_only)		install_angular_only		$OPT_VERSION	;;
+		install/node)			install_node			$OPT_VERSION			;;
+		install/nodejs)			install_node			$OPT_VERSION			;;
+		install/yarn)			install_yarn			$OPT_VERSION			;;
 
-		install/ionic)			install_ionic			$OPT_VERSION	;;
-		install/ionic_only)		install_ionic_only		$OPT_VERSION	;;
+		install/angular)		install_angular			$OPT_VERSION			;;
+		install/angular_only)		install_angular_only		$OPT_VERSION			;;
 
-		install/python)			install_python					;;
-		install_defaults)		install_defaults				;;
+		install/ionic)			install_ionic			$OPT_VERSION			;;
+		install/ionic_only)		install_ionic_only		$OPT_VERSION			;;
 
-		config-install|install/config)	config_install					;;
-		config-load)			config_load					;;
-		config-show)			config_show					;;
-		config-edit)			config_edit					;;
-		config-install)			config_install					;;
-		config-save)			config_save;					;;
+		install/python)			install_python							;;
+		install_defaults)		install_defaults						;;
 
-		envrc-install|install/envrc)	envrc_install					;;
-		envrc-load)			envrc_load					;;
-		envrc-edit)			envrc_edit					;;
-		envrc-install)			envrc_install					;;
-		envrc-save)			envrc_save;					;;
+		config-install|install/config)	config_install							;;
+		config-load)			config_load							;;
+		config-show)			config_show							;;
+		config-edit)			config_edit							;;
+		config-install)			config_install							;;
+		config-save)			config_save;							;;
 
-		list)				version_get					;;
+		envrc-install|install/envrc)	envrc_install							;;
+		envrc-load)			envrc_load							;;
+		envrc-edit)			envrc_edit							;;
+		envrc-install)			envrc_install							;;
+		envrc-save)			envrc_save;							;;
 
-		ssh-start)			ssh_agent_start					;;
-		ssh-stop)			ssh_agent_stop					;;
-		ssh-status)			ssh_agent_status				;;
+		list)				version_get							;;
 
-		*)				error "Unknown option '$OPT_MODE'"		;;
+		ssh-start)			ssh_agent_start							;;
+		ssh-stop)			ssh_agent_stop							;;
+		ssh-status)			ssh_agent_status						;;
+
+		install/)			run_help "Missing parameter <product>"				;;
+		show)				run_help "Missing paramater"					;;
+
+		MISSING)			run_help ""							;;
+
+		*)				error "Unknown option/parameter '$OPT_MODE'"			;;
 	esac
 
