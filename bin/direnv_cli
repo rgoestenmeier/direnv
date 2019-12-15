@@ -3,7 +3,7 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.0.0-01
+	_DEPLOY_VERSION=2.0.2-02
 
 #------------------------------------------------------------------------------------------
 	THIS="$0"
@@ -319,6 +319,7 @@ do_show_versions() {
 #------------------------------------------------------------------------------------------
 do_self_update() {
 	if [[ -d "$DIRENV_ROOT/.git" ]]; then
+		status "Update" "" "$DIRENV_ROOT"
 		cd "$DIRENV_ROOT"
 		git pull
 		exit
@@ -544,30 +545,31 @@ init() {
 
 	mkdir -p .env
 
-	LOCAL_FILE_ENVRC=".envrc"
-	LOCAL_FILE_CONFIG=".env/.envrc"
+	_DIRENV_FILE_ENVRC=".envrc"
+	_DIRENV_FILE_CONFIG=".env/.envrc.config"
+	_DIRENV_FILE_SSHUSR=".env/.ssh-user"
 
-	MASTER_FILE_CONFIG="$DIRENV_TEMPLATES/${_EXT}.config"
-	MASTER_FILE_ENVRC="$DIRENV_TEMPLATES/${_EXT}.envrc"
-
-	#
-	LOG "Create ${LOCAL_FILE_ENVRC} from $MASTER_FILE_ENVRC"
-	cp $MASTER_FILE_ENVRC ${LOCAL_FILE_ENVRC}
+	_MASTER_FILE_ENVRC="$DIRENV_TEMPLATES/${_EXT}.envrc"
+	_MASTER_FILE_CONFIG="$DIRENV_TEMPLATES/${_EXT}.config"
 
 	#
-	if [[ ! -f "$DIRENV_FILE_CONFIG" ]]; then
-		LOG "Create ${DIRENV_FILE_CONFIG} from $MASTER_FILE_CONFIG"
-		cp $MASTER_FILE_CONFIG $DIRENV_FILE_CONFIG
+	LOG "Create ${_DIRENV_FILE_ENVRC} from $_MASTER_FILE_ENVRC"
+	cp $_MASTER_FILE_ENVRC ${_DIRENV_FILE_ENVRC}
+
+	#
+	if [[ ! -f "$_DIRENV_FILE_CONFIG" ]]; then
+		LOG "Create ${_DIRENV_FILE_CONFIG} from $MASTER_FILE_CONFIG"
+		cp $_MASTER_FILE_CONFIG $_DIRENV_FILE_CONFIG
 	else
-		LOG "Already exists: ${DIRENV_FILE_CONFIG}"
+		LOG "Already exists: ${_DIRENV_FILE_CONFIG}"
 	fi
 
 	#
-	if [[ ! -f "$DIRENV_FILE_SSHUSR" ]]; then
-		LOG "Create ${DIRENV_FILE_SSHUSR} for ${DIRENV_USER}"
-		echo "$DIRENV_USER" >$DIRENV_FILE_SSHUSR
+	if [[ ! -f "$_DIRENV_FILE_SSHUSR" ]]; then
+		LOG "Create ${_DIRENV_FILE_SSHUSR} for ${DIRENV_USER}"
+		echo "$_DIRENV_USER" >$DIRENV_FILE_SSHUSR
 	else
-		LOG "Already exists: ${DIRENV_FILE_SSHUSR}"
+		LOG "Already exists: ${_DIRENV_FILE_SSHUSR}"
 	fi
 }
 
@@ -665,48 +667,50 @@ ssh_agent_stop() {
 
 	while [[ $# -gt 0 ]]; do
 		_P1="${1:-MISSING}"
+		[[ "$_P1" != "--" ]] && _P1="${1#--}"
+
 		_P2="${2:-}"
 
 		case "$1" in
-			-v | --verbose)				VERBOSE=true;							;;
-			-d | --debug)				DEBUGLEVEL="$_P2";				shift		;;
+			-v | --verbose)		VERBOSE=true;							;;
+			-d | --debug)		DEBUGLEVEL="$_P2";				shift		;;
 
-			--help)					OPT_YSN_HELP=YES;						;;
-			--version|version)			OPT_YSN_VERSION=YES;						;;
-			--info|info)				OPT_YSN_INFO=YES;						;;
+			help)			OPT_YSN_HELP=YES;						;;
+			version)		OPT_YSN_VERSION=YES;						;;
+			info)			OPT_YSN_INFO=YES;						;;
 
-			--update|update)			OPT_MODE=update;						;;
-			--check|check)				OPT_MODE=check;							;;
+			update)			OPT_MODE=update;						;;
+			check)			OPT_MODE=check;							;;
 
-			--force)				OPT_FORCE=YES;							;;
+			force)			OPT_FORCE=YES;							;;
 
-			--list|list)				OPT_MODE=list;							;;
-			--init|init)				OPT_MODE=init;		OPT_TYPE="$_P2";	shift		;;
-			--install|install)			OPT_MODE=install;	OPT_TYPE="$_P2";	shift		;;
+			list)			OPT_MODE=list;							;;
+			init)			OPT_MODE=init;		OPT_TYPE="$_P2";	shift		;;
+			install)		OPT_MODE=install;	OPT_TYPE="$_P2";	shift		;;
+
+			version)		OPT_VERSION="$_P2";				shift		;;
+			with-defaults)		OPT_WITH_DEFAULTS=YES						;;
 	
-			--install-version)			OPT_VERSION="$_P2";				shift		;;
-			--with-defaults)			OPT_WITH_DEFAULTS=YES						;;
-	
-			--install-defaults)			OPT_MODE=install_defaults					;;
+			install-defaults)	OPT_MODE=install_defaults					;;
 
-			--ssh|ssh)				OPT_MODE=ssh-$_P2						;;
-			--ssh-start)				OPT_MODE=ssh-start						;;
-			--ssh-stop)				OPT_MODE=ssh-stop						;;
-			--ssh-status)				OPT_MODE=ssh-status						;;
+			ssh)			OPT_MODE=ssh-$_P2						;;
+			ssh-start)		OPT_MODE=ssh-start						;;
+			ssh-stop)		OPT_MODE=ssh-stop						;;
+			ssh-status)		OPT_MODE=ssh-status						;;
 
-			--show|show)				OPT_MODE=${_P2}-show;				shift		;;
+			show)			OPT_MODE=${_P2}-show;				shift		;;
 
-			--envrc|envrc)				OPT_MODE=envrc-${_P2};				shift		;;
-			--show-envrc|show-envrc)		OPT_MODE=envrc-show						;;
-			--edit-envrc|edit-envrc)		OPT_MODE=envrc-edit						;;
-			--install-envrc|install-envrc)		OPT_MODE=envrc-install						;;
-			--save-envrc|save-envrc)		OPT_MODE=envrc-save;						;;
+			envrc)			OPT_MODE=envrc-${_P2};				shift		;;
+			show-envrc)		OPT_MODE=envrc-show						;;
+			edit-envrc)		OPT_MODE=envrc-edit						;;
+			install-envrc)		OPT_MODE=envrc-install						;;
+			save-envrc)		OPT_MODE=envrc-save;						;;
 
-			--config|config)			OPT_MODE=config-${_P2};				shift		;;
-			--show-config|show-config)		OPT_MODE=config-show						;;
-			--edit-config|edit-config)		OPT_MODE=config-edit						;;
-			--install-config|install-config)	OPT_MODE=config-install						;;
-			--save-config|save-config)		OPT_MODE=config-save;						;;
+			config)			OPT_MODE=config-${_P2};				shift		;;
+			show-config)		OPT_MODE=config-show						;;
+			edit-config)		OPT_MODE=config-edit						;;
+			install-config)	OPT_MODE=config-install						;;
+			save-config)		OPT_MODE=config-save;						;;
 
 			--)											shift;	break	;;
 			*)					error "Unknown option '$_P1'";			break	;;
