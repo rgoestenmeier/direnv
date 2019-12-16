@@ -3,7 +3,7 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.0.6-01
+	_DEPLOY_VERSION=2.0.6-02
 
 #------------------------------------------------------------------------------------------
 	HERE="$PWD"
@@ -861,12 +861,14 @@ install_angular() {
 }
 
 #------------------------------------------------------------------------------------------
-init() {
+run_init() {
+	debug 5 "run_init:1 | $*"
+
 	local _EXT="${1:-master}"
 
-	_DIRENV_FILE_ENVRC=".envrc"
-	_DIRENV_FILE_CONFIG=".env/.envrc.config"
-	_DIRENV_FILE_SSHUSR=".env/.ssh-user"
+	_DIRENV_FILE_ENVRC="$PWD/.envrc"
+	_DIRENV_FILE_CONFIG="$PWD/.env/.envrc.config"
+	_DIRENV_FILE_SSHUSR="$PWD/.env/.ssh-user"
 
 	_MASTER_FILE_ENVRC="$MASTER_FLDR_TEMPLATES/${_EXT}.envrc"
 	_MASTER_FILE_CONFIG="$MASTER_FLDR_TEMPLATES/${_EXT}.config"
@@ -874,6 +876,7 @@ init() {
 	status HEADER "Initialize"
 
 	#
+	debug 5 "run_init:2 | create folder .env"
 	mkdir -p .env
 
 	#
@@ -892,7 +895,7 @@ init() {
 	fi
 
 	#
-	if [[ ! -f "$_DIRENV_FILE_SSHUSR" ]]; then
+	if [[ -f "$_DIRENV_FILE_SSHUSR" ]]; then
 		LOG "Already exists: ${_DIRENV_FILE_SSHUSR}"
 	else
 		LOG "Create ${_DIRENV_FILE_SSHUSR} for ${DIRENV_USER}"
@@ -1120,7 +1123,7 @@ ssh_agent_stop() {
 
 	debug 4 "check mode $OPT_MODE"
 	case $OPT_MODE in
-		init)				init				$OPT_TYPE			;;
+		init)				run_init			$OPT_TYPE			;;
 		check)				run_check 			$OPT_TYPE			;;
 
 		update|deploy)			run_update_or_deploy $OPT_MODE	$OPT_TYPE	$OPT_DIRECTION	;;
