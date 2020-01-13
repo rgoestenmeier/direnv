@@ -3,7 +3,7 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.0.6-02
+	_DEPLOY_VERSION=2.0.9-01
 
 #------------------------------------------------------------------------------------------
 	HERE="$PWD"
@@ -28,9 +28,12 @@
 	DIRENV_FILE_SSHENV="$DIRENV_HOME/.ssh-environment"
 	DIRENV_FILE_SSHUSR="$DIRENV_HOME/.ssh-user"
 
-	#
 	DIRENV_USER="$(basename "$PWD")"
-	DIRENV_USER_SSH="$(cat $DIRENV_FILE_SSHUSR 2>&-)"
+	if [[ "|*-toolbox|" =~ "|$DIRENV_USER|" ]]; then
+		:
+	else
+		DIRENV_USER="$(pwd | sed '1,$s/.*\/\(.*-toolbox\).*/\1/')"
+	fi
 
 	#
 	MASTER_ROOT="$(cd $(dirname "$THIS")/..; pwd)"
@@ -162,7 +165,9 @@ status()
         _P1="${1:-}";	shift
         _P2="$*"
 
-	debug 6 "status:2| TYPE=$_TYPE P1=$_P1 P2=$_P2"
+	debug 6 "status:2| TYPE=$_TYPE"
+	debug 6 "status:2| P1  =$_P1"
+	debug 6 "status:2| P2  =$_P2"
 
 	if   [[ "|HIGHLIGHT|HEADER|SUBHEADER|ERROR|" =~ "$_TYPE" ]]; then
 		debug 6 "status:3| TYPE=$_TYPE"
@@ -179,18 +184,20 @@ status()
 #------------------------------------------------------------------------------------------
 info_with_check()
 {
+	debug 5 "info_with_check:1| $*"
+
 	local _P1; _P1="${1:-}"
 	local _P2; _P2="${2:-$_P1}"
 	local _P3; _P3="${3:-$_P2}"
 
-	_TYPE="$(file -b "$_P3" 2>&- | cut -d\; -f1)"
+	_TYPE="$(file -b "$_P3" 2>&- | cut -d\, -f1)"
 
 	status "$(printf "%s = %-60s (%s))" "${_P1}" "${_P2}" "$_TYPE")"
 }
 
 #------------------------------------------------------------------------------------------
 run_info() {
-	debug 5 "info:"	""
+	debug 5 "run_info:1| $*"
 
 	status 		HEADER		"INFO"
 	info_with_check			"SELF                  " "$(relpath "$SELF")"			"$SELF"
@@ -512,12 +519,28 @@ do_update() {
 	debug 5 "do_update:1 | $*"
 
 	local _TYPE; _TYPE="${1:-MISSING}"; _TYPE="${_TYPE^^}";	shift
-	local _MODE; _MODE="${1:-MISSING}"; _MODE="${_MODE^^}";	shift
 	local _FILE; _FILE="${1:-MISSING}"; _FILE="${_FILE^^}";	shift
+	local _SRC;   _SRC="${1:-MISSING}"; shift
+	local _DST;   _DST="${1:-MISSING}"; shift
 
 	#
-	debug 6 "do_update:2 | TYPE=$_TYPE MODE=$_MODE FILE=$_FILE"
+	debug 2 "do_update:2 | TYPE=$_TYPE FILE=$_FILE SRC=$_SRC DST=$_DST"
 
+	case "$_FILE" in
+		SCRIPT)		_FROM=SCRIPT			;;
+		ENVRC)		_FROM=FILE_ENVRC		;;
+		CONFIG)		_FROM=FILE_CONFIG		;;
+	esac
+
+
+	_FILE_SRC="${_SRC}_${_FROM}"		; debug 2 "do_update:2 | SRC=$_FILE_SRC"
+	_FILE_SRC="${!_FILE_SRC}"		; debug 2 "do_update:2 | SRC=$_FILE_SRC"
+
+	_FILE_DST="${_DST}_${_FROM}"		; debug 2 "do_update:2 | DST=$_FILE_DST"
+	_FILE_DST="${!_FILE_DST}"		; debug 2 "do_update:2 | DST=$_FILE_DST"
+
+	echo "cp $_FILE_SRC $_FILE_DST"
+	return
 
 	case "$_FILE" in
 		SCRIPT)		info_with_check "DIRENV_SCRIPT         " "$(relpath "$DIRENV_SCRIPT")"		"$DIRENV_SCRIPT"
@@ -549,41 +572,42 @@ run_update_or_deploy() {
 
 	#
 	case "$_MODE/$_PARM" in
-		UPDATE/FROM-MASTER)	_SRC=MASTER; _DST=LOCAL					;;
+		UPDATE/FROM-MASTER)	_SRC=MASTER; _DST=DIRENV				;;
 		UPDATE/FROM-DEPLOY)	_SRC=DEPLOY; _DST=MASTER				;;
-		UPDATE/TO-MASTER)	_SRC=LOCAL ; _DST=MASTER				;;
+		UPDATE/TO-MASTER)	_SRC=DIRENV; _DST=MASTER				;;
 		UPDATE/TO-DEPLOY)	_SRC=MASTER; _DST=DEPLOY				;;
 
 		DEPLOY/FROM-MASTER)	_SRC=MASTER; _DST=DEPLOY				;;
-		DEPLOY/FROM-LOCAL)	_SRC=LOCAL ; _DST=MASTER				;;
-		DEPLOY/TO-MASTER)	_SRC=LOCAL ; _DST=MASTER				;;
+		DEPLOY/FROM-LOCAL)	_SRC=DIRENV; _DST=MASTER				;;
+		DEPLOY/TO-MASTER)	_SRC=DIRENV; _DST=MASTER				;;
 		DEPLOY/TO-DEPLOY)	_SRC=MASTER; _DST=DEPLOY				;;
+
+		*)			_SRC_WRONG ; _DST=WRONG					;;
 
 	esac
 	debug 6 "run_update_or_deploy:2 | TYPE=$_TYPE MODE=$_MODE PARM=$_PARM SRC=$_SRC DST=$_DST"
 
-
-	colorize HEADER "Update $SELF $_MODE $_TYPE from $_SRC to $_DST"
+	colorize HEADER "Update $SELF: $_MODE TYPE=$_TYPE from $_SRC to $_DST"
 
 	debug 6 "run_update_or_deploy:3 | check type ($_TYPE) for SCRIPT"
 	if [[ "|MISSING|ALL|SCRIPT|" =~ "$_TYPE" ]]; then
 		colorize SUBHEADER "Update SCRIPT"
 
-		do_update $_MODE $_TYPE
+		do_update $_MODE SCRIPT $_SRC $_DST
 	fi
 
 	debug 6 "run_update_or_deploy:4 | check type ($_TYPE) for ENVRC"
 	if [[ "|MISSING|ALL|ENVRC|" =~ "$_TYPE" ]]; then
 		colorize SUBHEADER "Update ENVRC"
 
-		do_update $_MODE $_TYPE
+		do_update $_MODE ENVRC $_SRC $_DST
 	fi
 
 	debug 6 "run_update_or_deploy:5 | check type ($_TYPE) for CONFIG"
 	if [[ "|MISSING|ALL|CONFIG|" =~ "$_TYPE" ]]; then
 		colorize SUBHEADER "Update CONFIG"
 
-		do_update update $_MODE	envrc
+		do_update $_MODE CONFIG	$_SRC $_DST
 	fi
 }
 
@@ -599,15 +623,15 @@ do_check_version() {
 	local _VERSION_M="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE_M | cut -d= -f2)"
 	local _VERSION_D="$(grep -E '^\s+_DEPLOY_VERSION'  $_FILE_D | cut -d= -f2)"
 
-	debug 6 "do_check_version:2| 1 V=$_VERSION_L F=$_FILE_L"
-	debug 6 "do_check_version:2| 2 V=$_VERSION_M F=$_FILE_M"
-	debug 6 "do_check_version:2| 3 V=$_VERSION_D F=$_FILE_D"
+	debug 6 "do_check_version:2| L V=$_VERSION_L F=$_FILE_L"
+	debug 6 "do_check_version:2| M V=$_VERSION_M F=$_FILE_M"
+	debug 6 "do_check_version:2| D V=$_VERSION_D F=$_FILE_D"
 
 	colorize SUBHEADER "$_TITLE"
 
 	#
 	#
-	status LINE	"LOCAL"		"$_VERSION_L"
+	status LINE	"DIRENV"		"$_VERSION_L"
 
 	#
 	#
@@ -737,7 +761,7 @@ install_node() {
 
 	local _FOLDER=$DIRENV_HOME/node/$_VERSION
 	local _TARFILE=$(basename "$_LINK")
-	local _TARFLDR=$DIRENV_ROOT/cache
+	local _TARFLDR=$MASTER_ROOT/cache
 	local _TARPATH=$_TARFLDR/$_TARFILE
 
 	if [[ -f "$_TARPATH" ]]; then
@@ -835,12 +859,12 @@ install_ionic() {
 
 	install_check
 
-	status HEADER "Install Ionic and additional Tools""
+	status HEADER "Install Ionic and additional Tools"
 
 	install_python			$_VERSION
 	install_node			$_VERSION
 	install_yarn			$_VERSION
-	install_ionic_only		$VERSION
+	install_ionic_only		$_VERSION
 
 	install_defaults
 }
@@ -850,7 +874,7 @@ install_angular() {
 
 	install_check
 
-	status HEADER "Install Angular  and additional Tools""
+	status HEADER "Install Angular  and additional Tools"
 
 	install_python			$_VERSION
 	install_node			$_VERSION
@@ -880,7 +904,7 @@ run_init() {
 	mkdir -p .env
 
 	#
-	LOG "Create ${_DIRENV_FILE_ENVRC} from Master: $_MASTER_FILE_ENVRC"
+	LOG "Create .envrc ${_DIRENV_FILE_ENVRC} from Master: $_MASTER_FILE_ENVRC)"
 	cp $_MASTER_FILE_ENVRC ${_DIRENV_FILE_ENVRC}
 	[[ ! -f $_DIRENV_FILE_ENVRC ]] && error "copy not successfull: $_DIRENV_FILE_ENVRC"
 
@@ -888,7 +912,7 @@ run_init() {
 	if [[ -f "$_DIRENV_FILE_CONFIG" ]]; then
 		LOG "Already exists: ${_DIRENV_FILE_CONFIG}"
 	else
-		LOG "Create ${_DIRENV_FILE_CONFIG} from Master: $_MASTER_FILE_CONFIG"
+		LOG "Create .envrc.config ({_DIRENV_FILE_CONFIG} from Master: $_MASTER_FILE_CONFIG)"
 		cp $_MASTER_FILE_CONFIG $_DIRENV_FILE_CONFIG
 
 		[[ ! -f $_DIRENV_FILE_CONFIG ]] && error "copy not successfull: $_DIRENV_FILE_CONFIG"
@@ -898,8 +922,8 @@ run_init() {
 	if [[ -f "$_DIRENV_FILE_SSHUSR" ]]; then
 		LOG "Already exists: ${_DIRENV_FILE_SSHUSR}"
 	else
-		LOG "Create ${_DIRENV_FILE_SSHUSR} for ${DIRENV_USER}"
-		echo "$DIRENV_USER" >$DIRENV_FILE_SSHUSR
+		LOG "Create .env/.ssh-user (${_DIRENV_FILE_SSHUSR} for ${DIRENV_USER})"
+		echo "$DIRENV_USER" >$_DIRENV_FILE_SSHUSR
 	fi
 }
 
@@ -968,7 +992,7 @@ ssh_agent_stop() {
 	OPT_YSN_INTRO=NO
 	OPT_YSN_TEST=NO
 
-	OPT_MODE=MISSING
+	OPT_CMD=MISSING
 	OPT_TYPE=MISSING
 
 	OPT_DIRECTION=MISSING
@@ -1018,42 +1042,42 @@ ssh_agent_stop() {
 			version)		OPT_YSN_VERSION=YES;						;;
 			info)			OPT_YSN_INFO=YES;						;;
 
-			update)			OPT_MODE=update;						;;
-			deploy)			OPT_MODE=deploy;						;;
-			check)			OPT_MODE=check;							;;
+			update)			OPT_CMD=update;						;;
+			deploy)			OPT_CMD=deploy;						;;
+			check)			OPT_CMD=check;							;;
 
 			force)			OPT_FORCE=YES;							;;
 			details)		OPT_SHOW_DETAILS=YES;						;;
 
-			list)			OPT_MODE=list;							;;
-			init)			OPT_MODE=init;		OPT_TYPE="$_P2";	shift		;;
-			install)		OPT_MODE=install;	OPT_TYPE="$_P2";	shift		;;
+			list)			OPT_CMD=list;							;;
+			init)			OPT_CMD=init;		OPT_TYPE="$_P2";	shift		;;
+			install)		OPT_CMD=install;	OPT_TYPE="$_P2";	shift		;;
 
 			version)		OPT_VERSION="$_P2";				shift		;;
 			with-defaults)		OPT_WITH_DEFAULTS=YES						;;
 
 			install-version)	OPT_VERSION="$_P2";				shift		;;
-			install-defaults)	OPT_MODE=install_defaults					;;
+			install-defaults)	OPT_CMD=install_defaults					;;
 
-			ssh)			OPT_MODE=ssh-$_P2						;;
-			ssh-start)		OPT_MODE=ssh-start						;;
-			ssh-stop)		OPT_MODE=ssh-stop						;;
-			ssh-status)		OPT_MODE=ssh-status						;;
+			ssh)			OPT_CMD=ssh-$_P2						;;
+			ssh-start)		OPT_CMD=ssh-start						;;
+			ssh-stop)		OPT_CMD=ssh-stop						;;
+			ssh-status)		OPT_CMD=ssh-status						;;
 
 			show)			[[ -n $_P2 ]] && _P2="${_P2}-"
-						OPT_MODE=${_P2}show;				shift		;;
+						OPT_CMD=${_P2}show;				shift		;;
 
-			envrc)			OPT_MODE=envrc-${_P2};				shift		;;
-			show-envrc)		OPT_MODE=envrc-show						;;
-			edit-envrc)		OPT_MODE=envrc-edit						;;
-			install-envrc)		OPT_MODE=envrc-install						;;
-			save-envrc)		OPT_MODE=envrc-save;						;;
+			envrc)			OPT_CMD=envrc-${_P2};				shift		;;
+			show-envrc)		OPT_CMD=envrc-show						;;
+			edit-envrc)		OPT_CMD=envrc-edit						;;
+			install-envrc)		OPT_CMD=envrc-install						;;
+			save-envrc)		OPT_CMD=envrc-save;						;;
 
-			config)			OPT_MODE=config-${_P2};				shift		;;
-			show-config)		OPT_MODE=config-show						;;
-			edit-config)		OPT_MODE=config-edit						;;
-			install-config)		OPT_MODE=config-install						;;
-			save-config)		OPT_MODE=config-save;						;;
+			config)			OPT_CMD=config-${_P2};				shift		;;
+			show-config)		OPT_CMD=config-show						;;
+			edit-config)		OPT_CMD=config-edit						;;
+			install-config)		OPT_CMD=config-install						;;
+			save-config)		OPT_CMD=config-save;						;;
 
 
 			#
@@ -1090,8 +1114,8 @@ ssh_agent_stop() {
 	OPT_VERSION=${OPT_VERSION^^}
 
 #------------------------------------------------------------------------------------------
-	if [[ $OPT_MODE == install ]]; then
-		OPT_MODE=$OPT_MODE/$OPT_TYPE
+	if [[ $OPT_CMD == install ]]; then
+		OPT_CMD=$OPT_CMD/$OPT_TYPE
 	fi
 
 	[[ $OPT_YSN_INTRO   == YES ]] && run_intro
@@ -1118,15 +1142,16 @@ ssh_agent_stop() {
 	debug 4 "OPT_YSN_VERSION = $OPT_YSN_VERSION"
 	debug 4 "OPT_VERSION     = $OPT_VERSION"
 
+	debug 4 "OPT_CMD         = $OPT_CMD"
 	debug 4 "OPT_TYPE        = $OPT_TYPE"
 	debug 4 "OPT_DIRECTION   = $OPT_DIRECTION"
 
-	debug 4 "check mode $OPT_MODE"
-	case $OPT_MODE in
+	debug 4 "check mode $OPT_CMD"
+	case $OPT_CMD in
 		init)				run_init			$OPT_TYPE			;;
 		check)				run_check 			$OPT_TYPE			;;
 
-		update|deploy)			run_update_or_deploy $OPT_MODE	$OPT_TYPE	$OPT_DIRECTION	;;
+		update|deploy)			run_update_or_deploy $OPT_CMD $OPT_TYPE	$OPT_DIRECTION		;;
 
 		version)			version;							;;
 		help)				run_help;							;;
@@ -1168,6 +1193,6 @@ ssh_agent_stop() {
 
 		MISSING)			run_help ""							;;
 
-		*)				error "Unknown option/parameter '$OPT_MODE'"			;;
+		*)				error "Unknown option/parameter '$OPT_CMD'"			;;
 	esac
 
