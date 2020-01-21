@@ -3,7 +3,7 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.1.1-05
+	_DEPLOY_VERSION=2.1.1-06
 
 #------------------------------------------------------------------------------------------
 	HERE="$PWD"
@@ -480,12 +480,12 @@ config_show()
 
         LOG "Show configuration file"
         LOG "use_ionic    = ${USE_IONIC,,}"		NONUMBER
-        LOG "use_angular  = ${USE_ANGULAR,,}"		NONUMBER
+        LOG "use_angular  = ${USE_ANGULAR,,}"	NONUMBER
         LOG "use_node     = ${USE_NODE,,}"		NONUMBER
-        LOG "use_flutter  = ${USE_FLUTTER,,}"		NONUMBER
-        LOG "use_dotnet   = ${USE_DOTNET,,}"		NONUMBER
-        LOG "use_python   = ${USE_PYTHON,,}"		NONUMBER
-        LOG "use_fastlane = ${USE_FASTLANE,,}"		NONUMBER
+        LOG "use_flutter  = ${USE_FLUTTER,,}"	NONUMBER
+        LOG "use_dotnet   = ${USE_DOTNET,,}"	NONUMBER
+        LOG "use_python   = ${USE_PYTHON,,}"	NONUMBER
+        LOG "use_fastlane = ${USE_FASTLANE,,}"	NONUMBER
         LOG "use_yarn     = ${USE_YARN,,}"		NONUMBER
 }
 
@@ -533,29 +533,29 @@ do_update() {
 	esac
 
 
-	_FILE_SRC="${_SRC}_${_FROM}"		; debug 2 "do_update:2 | SRC=$_FILE_SRC"
+	_FILE_SRC="${_SRC}_${_FROM}"	; debug 2 "do_update:2 | SRC=$_FILE_SRC"
 	_FILE_SRC="${!_FILE_SRC}"		; debug 2 "do_update:2 | SRC=$_FILE_SRC"
 
-	_FILE_DST="${_DST}_${_FROM}"		; debug 2 "do_update:2 | DST=$_FILE_DST"
+	_FILE_DST="${_DST}_${_FROM}"	; debug 2 "do_update:2 | DST=$_FILE_DST"
 	_FILE_DST="${!_FILE_DST}"		; debug 2 "do_update:2 | DST=$_FILE_DST"
 
 	echo "cp $_FILE_SRC $_FILE_DST"
 	return
 
 	case "$_FILE" in
-		SCRIPT)		info_with_check "DIRENV_SCRIPT         " "$(relpath "$DIRENV_SCRIPT")"		"$DIRENV_SCRIPT"
+		SCRIPT)	info_with_check "DIRENV_SCRIPT         " "$(relpath "$DIRENV_SCRIPT")"		"$DIRENV_SCRIPT"
 				info_with_check "MASTER_SCRIPT         " "$(relpath "$MASTER_SCRIPT")"		"$MASTER_SCRIPT"
 				info_with_check "DEPLOY_SCRIPT         " "$(relpath "$DEPLOY_SCRIPT")"		"$DEPLOY_SCRIPT"
 				;;
 
-		ENVRC)		info_with_check	"DIRENV_FILE_ENVRC     " "$(relpath "$DIRENV_FILE_ENVRC")"	"$DIRENV_FILE_ENVRC"
+		ENVRC)	info_with_check	"DIRENV_FILE_ENVRC     " "$(relpath "$DIRENV_FILE_ENVRC")"	"$DIRENV_FILE_ENVRC"
 				info_with_check "DEPLOY_FILE_ENVRC     " "$(relpath "$DEPLOY_FILE_ENVRC")"	"$DEPLOY_FILE_ENVRC"
 				info_with_check "MASTER_FILE_ENVRC     " "$(relpath "$MASTER_FILE_ENVRC")"	"$MASTER_FILE_ENVRC"
 				;;
 
-		CONFIG)		info_with_check	"DIRENV_FILE_CONFIG    " "$(relpath "$DIRENV_FILE_CONFIG")"	"$DIRENV_FILE_CONFIG"
+		CONFIG)	info_with_check	"DIRENV_FILE_CONFIG    " "$(relpath "$DIRENV_FILE_CONFIG")"	"$DIRENV_FILE_CONFIG"
 				info_with_check "MASTER_FILE_CONFIG    " "$(relpath "$MASTER_FILE_CONFIG")"	"$MASTER_FILE_CONFIG"
-				info_with_check "DEPLOY_FILE_CONFIG    " "$(relpath "$DEPLOY_FILE_CONFIG")" 	"$DEPLOY_FILE_CONFIG"
+				info_with_check "DEPLOY_FILE_CONFIG    " "$(relpath "$DEPLOY_FILE_CONFIG")"	"$DEPLOY_FILE_CONFIG"
 				;;
 		*)
 				;;
@@ -591,21 +591,21 @@ run_update_or_deploy() {
 
 	debug 6 "run_update_or_deploy:3 | check type ($_TYPE) for SCRIPT"
 	if [[ "|MISSING|ALL|SCRIPT|" =~ "$_TYPE" ]]; then
-		colorize SUBHEADER "Update SCRIPT"
+		#colorize SUBHEADER "Update SCRIPT"
 
 		do_update $_MODE SCRIPT $_SRC $_DST
 	fi
 
 	debug 6 "run_update_or_deploy:4 | check type ($_TYPE) for ENVRC"
 	if [[ "|MISSING|ALL|ENVRC|" =~ "$_TYPE" ]]; then
-		colorize SUBHEADER "Update ENVRC"
+		#colorize SUBHEADER "Update ENVRC"
 
 		do_update $_MODE ENVRC $_SRC $_DST
 	fi
 
 	debug 6 "run_update_or_deploy:5 | check type ($_TYPE) for CONFIG"
 	if [[ "|MISSING|ALL|CONFIG|" =~ "$_TYPE" ]]; then
-		colorize SUBHEADER "Update CONFIG"
+		#colorize SUBHEADER "Update CONFIG"
 
 		do_update $_MODE CONFIG	$_SRC $_DST
 	fi
@@ -900,7 +900,8 @@ run_init() {
 	mkdir -p .env
 
 	#
-	LOG "Create .envrc ${_DIRENV_FILE_ENVRC} from Master: $_MASTER_FILE_ENVRC)"
+	LOG "Create .envrc       $_DIRENV_FILE_ENVRC"
+	LOG "       from Master: $_MASTER_FILE_ENVRC"
 	cp $_MASTER_FILE_ENVRC ${_DIRENV_FILE_ENVRC}
 	[[ ! -f $_DIRENV_FILE_ENVRC ]] && error "copy not successfull: $_DIRENV_FILE_ENVRC"
 
@@ -908,7 +909,8 @@ run_init() {
 	if [[ -f "$_DIRENV_FILE_CONFIG" ]]; then
 		LOG "Already exists: ${_DIRENV_FILE_CONFIG}"
 	else
-		LOG "Create .envrc.config ({_DIRENV_FILE_CONFIG} from Master: $_MASTER_FILE_CONFIG)"
+		LOG "Create .envrc.config $_DIRENV_FILE_CONFIG"
+		LOG "       from Master:  $_MASTER_FILE_CONFIG"
 		cp $_MASTER_FILE_CONFIG $_DIRENV_FILE_CONFIG
 
 		[[ ! -f $_DIRENV_FILE_CONFIG ]] && error "copy not successfull: $_DIRENV_FILE_CONFIG"
