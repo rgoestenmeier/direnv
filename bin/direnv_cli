@@ -3,7 +3,7 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.0.9-01
+	_DEPLOY_VERSION=2.1.1-05
 
 #------------------------------------------------------------------------------------------
 	HERE="$PWD"
@@ -629,12 +629,8 @@ do_check_version() {
 
 	colorize SUBHEADER "$_TITLE"
 
-	#
-	#
 	status LINE	"DIRENV"		"$_VERSION_L"
 
-	#
-	#
 	_HEADER=LINE
 	_DETAILS=""
 	if [[ "$_VERSION_L"  != "$_VERSION_M" ]]; then
@@ -686,13 +682,13 @@ run_check() {
 	colorize HEADER "Check files (L=local, M=Master, D=Deploy)"
 
 	do_check_version "Check command line script: direnc_cli"	\
-			"$DIRENV_SCRIPT"				\
-			"$MASTER_ROOT/bin/$SELF"			\
+			"$DIRENV_SCRIPT"									\
+			"$MASTER_ROOT/bin/$SELF"							\
 			"$DEPLOY_ROOT/bin/$SELF"
 
-	do_check_version "Check .envrc script" 				\
-			"$DIRENV_FILE_ENVRC"				\
-			"$MASTER_FLDR_TEMPLATES/master.envrc"		\
+	do_check_version "Check .envrc script" 						\
+			"$DIRENV_FILE_ENVRC"								\
+			"$MASTER_FLDR_TEMPLATES/master.envrc"				\
 			"$DEPLOY_FLDR_TEMPLATES/master.envrc"
 }
 

@@ -1,4 +1,4 @@
-# _DEPLOY_VERSION=2.1.1-05
+# _DEPLOY_VERSION=2.0.0-01
 
 defaults=ionic
 defaults=commitizen
@@ -10,8 +10,7 @@ use_node=true
 use_ionic=true
 use_angular=true
 use_python=true
-use_dotnet=false
+use_dotnet=true
 use_yarn=true
 use_flutter=false
 use_fastlane=false
-use_anroid=false

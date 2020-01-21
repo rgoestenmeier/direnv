@@ -223,7 +223,7 @@ use_config
 
 #-------------------------------------------------------------------------------
 status_timer	"HERE" ""
-status  		"HERE" ""	"Enabled"	"$_DEPLOY_VERSION" "$HERE"
+status  	"HERE" ""	"Enabled"	"$_DEPLOY_VERSION" "$HERE"
 
 #-------------------------------------------------------------------------------
 export NODE_VERSIONS="$DIRENV_HOME/node"
@@ -233,58 +233,50 @@ export _NODE_PATH="-"
 export _NPM_VERSION="-"
 export _NPM_PATH="-"
 
-if [[ "$USE_NODE" == "YES" ]]; then
-	status_timer	"Node"	"YES"
-	if [[ -d "$NODE_VERSIONS" ]]; then
-		_NODE_VERSION="$(ls -1rt "$NODE_VERSIONS" | sed '1,$s/^v//' |sort -n |tail -1)"
+status_timer	"Node"	"YES"
+if [[ -d "$NODE_VERSIONS" ]]; then
+	_NODE_VERSION="$(ls -1rt "$NODE_VERSIONS" | sed '1,$s/^v//' |sort -n |tail -1)"
 
-		use node $_NODE_VERSION
-		export PATH="$NODE_VERSIONS/v$_NODE_VERSION/bin:$DIRENV_HOME/bin:$PATH"
+	use node $_NODE_VERSION
+	export PATH="$NODE_VERSIONS/v$_NODE_VERSION/bin:$DIRENV_HOME/bin:$PATH"
 
-		export _NODE_VERSION="$(node --version 2>&- | sed '1,$s/v//g' 2>&-)"
-		export _NODE_PATH="$(show_path node)"
-		export _NPM_VERSION="$(npm --version 2>&-)"
-		export _NPM_PATH="$(show_path npm)"
-	fi
-
-	status  		"Node"	"$USE_NODE"	"Enabled"	"$_NODE_VERSION"		"$_NODE_PATH"
-	status_timer	"NPM"	"YES"
-	status  		"NPM"	"$USE_NODE"	"Enabled"	"$_NPM_VERSION"			"$_NPM_PATH"
+	export _NODE_VERSION="$(node --version 2>&- | sed '1,$s/v//g' 2>&-)"
+	export _NODE_PATH="$(show_path node)"
+	export _NPM_VERSION="$(npm --version 2>&-)"
+	export _NPM_PATH="$(show_path npm)"
+else
+	status  "Enabled" "node"	"$USE_NODE"	"no path for node"	"$NODE_VERSIONS"
 fi
+
+status  	"Node"	"$USE_NODE"	"Enabled"	"$_NODE_VERSION"		"$_NODE_PATH"
+status_timer	"NPM"	"YES"
+status  	"NPM"	"$USE_NODE"	"Enabled"	"$_NPM_VERSION"			"$_NPM_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_YARN" == "YES" ]]; then
-	status_timer	"Yarn"		"YES"
-	use_yarn
-	status  	"Yarn"		"$USE_YARN"	"Enabled"	"$_YARN_VERSION"		"$_YARN_PATH"
-fi
+status_timer	"Yarn"		"YES"
+use_yarn
+status  	"Yarn"		"$USE_YARN"	"Enabled"	"$_YARN_VERSION"		"$_YARN_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_IONIC" == "YES" ]]; then
-	status_timer	"Ionic"		"YES"
-	use_ionic
-	status  		"Ionic"		"$USE_IONIC"	"Enabled"	"$_IONIC_VERSION"		"$_IONIC_PATH"
-fi
+status_timer	"Ionic"		"YES"
+use_ionic
+status  	"Ionic"		"$USE_IONIC"	"Enabled"	"$_IONIC_VERSION"		"$_IONIC_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_ANGULAR" == "YES" ]]; then
-	status_timer	"Angular"	"YES"
-	use_angular
-	status  		"Angular"	"$USE_ANGULAR"	"Enabled"	"$_ANGULAR_VERSION"		"$_ANGULAR_PATH"
-fi
+status_timer	"Angular"	"YES"
+use_angular
+status  	"Angular"	"$USE_ANGULAR"	"Enabled"	"$_ANGULAR_VERSION"		"$_ANGULAR_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_FLUTTER" == "YES" ]]; then
-	status_timer	"Flutter"	"YES"
-	use_flutter
-	status  		"Flutter"	"$USE_FLUTTER"	"Enabled"	"$_FLUTTER_VERSION"		"$_FLUTTER_PATH"
-fi
+#	status_timer	"Flutter"	"YES"
+#	use_flutter
+#	status  	"Flutter"	"$USE_FLUTTER"	"Enabled"	"$_FLUTTER_VERSION"		"$_FLUTTER_PATH"
 
 #-------------------------------------------------------------------------------
 if [[ "$USE_FASTLANE" == "YES" ]]; then
 	status_timer	"Fastlane"	"$USE_FASTLANE"
 	use_fastlane
-	status  		"Fastlane"	"$USE_FASTLANE"	"Enabled"	"$_FASTLANE_VERSION"	"$_FASTLANE_PATH"
+	status  	"Fastlane"	"$USE_FASTLANE"	"Enabled"	"$_FASTLANE_VERSION"	"$_FASTLANE_PATH"
 fi
 
 #-------------------------------------------------------------------------------

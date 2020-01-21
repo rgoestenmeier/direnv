@@ -2,7 +2,7 @@
 	set -u
 
 #-------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.1.1-05
+	_DEPLOY_VERSION=2.0.9-03
 
 #-------------------------------------------------------------------------------
 	ARGV=$BASH_ARGV
@@ -10,13 +10,13 @@
 	HERE="$(cd $(dirname "$ARGV"); pwd)"
 	SELF="$(basename "$ARGV")"
 
-	export DIRENV_BASE="$HERE"
+        export DIRENV_BASE="$HERE"
 	export DIRENV_HOME="$HERE/.env"
 
-	DIRENV_FILE_ENVRC="$DIRENV_BASE/.envrc"
-	DIRENV_FILE_CONFIG="$DIRENV_HOME/.envrc.config"
-	DIRENV_FILE_SSHENV="$DIRENV_HOME/.ssh-environment"
-	DIRENV_FILE_SSHUSR="$DIRENV_HOME/.ssh-user"
+        DIRENV_FILE_ENVRC="$DIRENV_BASE/.envrc"
+        DIRENV_FILE_CONFIG="$DIRENV_HOME/.envrc.config"
+        DIRENV_FILE_SSHENV="$DIRENV_HOME/.ssh-environment"
+        DIRENV_FILE_SSHUSR="$DIRENV_HOME/.ssh-user"
 
 	[[ -f "$DIRENV_FILE_CONFIG" ]] && eval $(grep -E '^use_' $DIRENV_FILE_CONFIG | tr "[:lower:]" "[:upper:]")
 
@@ -25,7 +25,9 @@
 	export SSH_USR="default"
 	[[ -f "$DIRENV_FILE_SSHUSR" ]] && export SSH_USR="$(< $DIRENV_FILE_SSHUSR)"
 
-status_timer() {
+#-------------------------------------------------------------------------------
+status_timer()
+{
 	_P1="${1:-}"; shift
 	_P2="${2:-}"
 
@@ -43,12 +45,13 @@ status_timer() {
 	fi
 }
 
-status() {
+status()
+{
 	_P1="${1:-}"; shift		# Komponente: node, ionic, angular, python, ...
 	_P2="${1:-}"; shift		# USE_....
 	_P3="${1:-}"; shift		# Enabled/Missing
 	_P4="${1:-}"; shift		# Version
-	_P5="$*"				# Pfad
+	_P5="$*"			# Pfad
 
 	# USE_... YES/NO/MISSING
 	_P2="${_P2^^}"
@@ -77,6 +80,7 @@ status() {
 	fi
 }
 
+#-------------------------------------------------------------------------------
 use_ssh_agent() {
 	_START=${#SSH_ENV}
 	_REL_PATH="${DIRENV_HOME:$_START}"
@@ -102,6 +106,7 @@ use_ssh() {
 	ssh-add -q ~/.ssh/id_rsa_$SSH_USR
 }
 
+#-------------------------------------------------------------------------------
 use_python_venv() {
 	export DIRENV_STATUS_HAS_PYTHON=NO
 	export DIRENV_STATUS=
@@ -125,41 +130,31 @@ use_python_venv() {
 	fi
 }
 
+#-------------------------------------------------------------------------------
 use_flutter() {
 	export _FLUTTER_HOME="/Users/Shared/CLOUD/Development.Flutter/current"
-	PATH_add $_FLUTTER_HOME/bin:$PATH
-
 	export _FLUTTER_PATH="$(which flutter)"
 	export _FLUTTER_VERSION="$(flutter  --version 2>&-|head -1|cut -d' ' -f2)"
 
+	PATH_add $_FLUTTER_HOME/bin:$PATH
 }
 
-use_android() {
-	export _ANDROID_HOME=/Users/Shared/CLOUD/DevApps/Android/SDK
-	export _ANDROID_PATH=$_ANDROID_HOME/tools/bin
-
-	export ANDROID_HOME="$_ANDROID_HOME"
-	export ANDROID_SDK=$ANDROID_HOME
-
-	PATH_add $ANDROID_SDK/platform-tools:$ANDROID_SDK/tools:$ANDROID_SDK/tools/bin:$ANDROID_SDK/emulator:$PATH
-
-	export _ANDROID_VERSION="$(android  --version 2>&-|head -1|cut -d' ' -f2)"
-}
-
+#-------------------------------------------------------------------------------
 use_fastlane() {
 	export _FASTLANE_HOME="$HOME/.fastlane"
 	export _FASTLANE_PATH="$HOME/bin"
+	export _FASTLANE_VERSION="$(fastlane --version 2>&-|tail -1|cut -d' ' -f2)"
 
 	PATH_add $_FASTLANE_PATH
-
-	export _FASTLANE_VERSION="$(fastlane --version 2>&-|tail -1|cut -d' ' -f2)"
 }
 
+#-------------------------------------------------------------------------------
 use_yarn() {
 	export _YARN_PATH="$(show_path yarn)"
 	export _YARN_VERSION="$(yarn --version 2>&-)"
 }
 
+#-------------------------------------------------------------------------------
 use_ionic() {
 	export _IONIC_PATH="$(show_path ionic)"
 	export _IONIC_VERSION="$(ionic --version 2>&-)"
@@ -170,7 +165,9 @@ use_angular() {
 	export _ANGULAR_VERSION="$(ng version 2>&- | grep 'Angular CLI' | cut -c14- 2>&-)"
 }
 
-show_path() {
+#-------------------------------------------------------------------------------
+show_path()
+{
 	local _APP_PATH="$(which "$1")"
 
 	_START=${#HERE}
@@ -179,7 +176,9 @@ show_path() {
 	echo "HERE$_REL_PATH"
 }
 
-use_config_export() {
+#-------------------------------------------------------------------------------
+use_config_export()
+{
 	local _VAR; _VAR="$1";			shift
 	local _VAL; _VAL="${1:-MISSING}";	shift
 
@@ -191,30 +190,33 @@ use_config_export() {
 	export $_VAR=$_VAL
 }
 
-use_config() {
+
+
+use_config()
+{
 	[[ -f "$DIRENV_HOME/.envrc.config" ]] && eval $(grep -E '^use_' $DIRENV_HOME/.envrc.config | tr "[:lower:]" "[:upper:]")
 
-	use_config_export USE_IONIC		${USE_IONIC:-NO}
+	use_config_export USE_IONIC	${USE_IONIC:-NO}
 	use_config_export USE_ANGULAR	${USE_ANGULAR:-NO}
-	use_config_export USE_NODE		${USE_NODE:-NO}
+	use_config_export USE_NODE	${USE_NODE:-NO}
 	use_config_export USE_FLUTTER	${USE_FLUTTER:-NO}
 	use_config_export USE_DOTNET	${USE_DOTNET:-NO}
 	use_config_export USE_PYTHON	${USE_PYTHON:-NO}
 	use_config_export USE_FASTLANE	${USE_FASTLANE:-NO}
-	use_config_export USE_YARN		${USE_YARN:-NO}
-	use_config_export USE_ANDROID	${USE_ANDROID:-NO}
+	use_config_export USE_YARN	${USE_YARN:-NO}
 }
 
-show_config() {
-	echo "USE_IONIC   = $USE_IONIC"
-	echo "USE_ANGULAR = $USE_ANGULAR"
-	echo "USE_NODE    = $USE_NODE"
-	echo "USE_FLUTTER = $USE_FLUTTER"
-	echo "USE_DOTNET  = $USE_DOTNET"
-	echo "USE_PYTHON  = $USE_PYTHON"
-	echo "USE_FASTLANE= $USE_FASTLANE"
-	echo "USE_YARN    = $USE_YARN"
-	echo "USE_ANDROID = $USE_ANDROID"
+#-------------------------------------------------------------------------------
+show_config()
+{
+	echo "USE_IONIC   =$USE_IONIC"
+	echo "USE_ANGULAR =$USE_ANGULAR"
+	echo "USE_NODE    =$USE_NODE"
+	echo "USE_FLUTTER =$USE_FLUTTER"
+	echo "USE_DOTNET  =$USE_DOTNET"
+	echo "USE_PYTHON  =$USE_PYTHON"
+	echo "USE_FASTLANE=$USE_FASTLANE"
+	echo "USE_YARN    =$USE_YARN"
 }
 
 
@@ -223,7 +225,7 @@ use_config
 
 #-------------------------------------------------------------------------------
 status_timer	"HERE" ""
-status  		"HERE" ""	"Enabled"	"$_DEPLOY_VERSION" "$HERE"
+status  	"HERE" ""	"Enabled"	"$_DEPLOY_VERSION" "$HERE"
 
 #-------------------------------------------------------------------------------
 export NODE_VERSIONS="$DIRENV_HOME/node"
@@ -233,75 +235,58 @@ export _NODE_PATH="-"
 export _NPM_VERSION="-"
 export _NPM_PATH="-"
 
-if [[ "$USE_NODE" == "YES" ]]; then
-	status_timer	"Node"	"YES"
-	if [[ -d "$NODE_VERSIONS" ]]; then
-		_NODE_VERSION="$(ls -1rt "$NODE_VERSIONS" | sed '1,$s/^v//' |sort -n |tail -1)"
+status_timer	"Node"	"YES"
+if [[ -d "$NODE_VERSIONS" ]]; then
+	_NODE_VERSION="$(ls -1rt "$NODE_VERSIONS" | sed '1,$s/^v//' |sort -n |tail -1)"
 
-		use node $_NODE_VERSION
-		export PATH="$NODE_VERSIONS/v$_NODE_VERSION/bin:$DIRENV_HOME/bin:$PATH"
+	use node $_NODE_VERSION
+	export PATH="$NODE_VERSIONS/v$_NODE_VERSION/bin:$DIRENV_HOME/bin:$PATH"
 
-		export _NODE_VERSION="$(node --version 2>&- | sed '1,$s/v//g' 2>&-)"
-		export _NODE_PATH="$(show_path node)"
-		export _NPM_VERSION="$(npm --version 2>&-)"
-		export _NPM_PATH="$(show_path npm)"
-	fi
-
-	status  		"Node"	"$USE_NODE"	"Enabled"	"$_NODE_VERSION"		"$_NODE_PATH"
-	status_timer	"NPM"	"YES"
-	status  		"NPM"	"$USE_NODE"	"Enabled"	"$_NPM_VERSION"			"$_NPM_PATH"
+	export _NODE_VERSION="$(node --version 2>&- | sed '1,$s/v//g' 2>&-)"
+	export _NODE_PATH="$(show_path node)"
+	export _NPM_VERSION="$(npm --version 2>&-)"
+	export _NPM_PATH="$(show_path npm)"
+else
+	status  "Enabled" "node"	"$USE_NODE"	"no path for node"	"$NODE_VERSIONS"
 fi
+
+status  	"Node"	"$USE_NODE"	"Enabled"	"$_NODE_VERSION"		"$_NODE_PATH"
+status_timer	"NPM"	"YES"
+status  	"NPM"	"$USE_NODE"	"Enabled"	"$_NPM_VERSION"			"$_NPM_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_YARN" == "YES" ]]; then
-	status_timer	"Yarn"		"YES"
-	use_yarn
-	status  	"Yarn"		"$USE_YARN"	"Enabled"	"$_YARN_VERSION"		"$_YARN_PATH"
-fi
+status_timer	"Yarn"		"YES"
+use_yarn
+status  	"Yarn"		"$USE_YARN"	"Enabled"	"$_YARN_VERSION"		"$_YARN_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_IONIC" == "YES" ]]; then
-	status_timer	"Ionic"		"YES"
-	use_ionic
-	status  		"Ionic"		"$USE_IONIC"	"Enabled"	"$_IONIC_VERSION"		"$_IONIC_PATH"
-fi
+status_timer	"Ionic"		"YES"
+use_ionic
+status  	"Ionic"		"$USE_IONIC"	"Enabled"	"$_IONIC_VERSION"		"$_IONIC_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_ANGULAR" == "YES" ]]; then
-	status_timer	"Angular"	"YES"
-	use_angular
-	status  		"Angular"	"$USE_ANGULAR"	"Enabled"	"$_ANGULAR_VERSION"		"$_ANGULAR_PATH"
-fi
+status_timer	"Angular"	"YES"
+use_angular
+status  	"Angular"	"$USE_ANGULAR"	"Enabled"	"$_ANGULAR_VERSION"		"$_ANGULAR_PATH"
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_FLUTTER" == "YES" ]]; then
-	status_timer	"Flutter"	"YES"
-	use_flutter
-	status  		"Flutter"	"$USE_FLUTTER"	"Enabled"	"$_FLUTTER_VERSION"		"$_FLUTTER_PATH"
-fi
+#	status_timer	"Flutter"	"YES"
+#	use_flutter
+#	status  	"Flutter"	"$USE_FLUTTER"	"Enabled"	"$_FLUTTER_VERSION"		"$_FLUTTER_PATH"
 
 #-------------------------------------------------------------------------------
 if [[ "$USE_FASTLANE" == "YES" ]]; then
 	status_timer	"Fastlane"	"$USE_FASTLANE"
 	use_fastlane
-	status  		"Fastlane"	"$USE_FASTLANE"	"Enabled"	"$_FASTLANE_VERSION"	"$_FASTLANE_PATH"
+	status  	"Fastlane"	"$USE_FASTLANE"	"Enabled"	"$_FASTLANE_VERSION"	"$_FASTLANE_PATH"
 fi
 
 #-------------------------------------------------------------------------------
-if [[ "$USE_ANDROID" == "YES" ]]; then
-	status_timer	"Android"	"$USE_ANDROID"
-	use_android
-	status   		"Android"	"$USE_ANDROID"	"$_ANDROID_VERSION"	"$_ANDROID_PATH"
-fi
-
-#-------------------------------------------------------------------------------
-if [[ "$USE_PYTHON" == "YES" ]]; then
-	status_timer	"Python"	"$USE_PYTHON"
-	use_python_venv
-	status  		"Python"	"$USE_PYTHON"	"$DIRENV_STATUS"	"$_PYTHON_VERSION"		"$_PYTHON_PATH"
-fi
+status_timer	"Python"	"$USE_PYTHON"
+use_python_venv
+status  	"Python"	"$USE_PYTHON"	"$DIRENV_STATUS"	"$_PYTHON_VERSION"		"$_PYTHON_PATH"
 
 #-------------------------------------------------------------------------------
 status_timer	"SSH"		"YES"
 use_ssh
-status  		"SSH"		"YES"		"Enabled" "$SSH_AGENT_PID"		"$(ssh-add  -l | cut -d' ' -f3)"
+status  	"SSH"		"YES"		"Enabled" "$SSH_AGENT_PID"		"$(ssh-add  -l | cut -d' ' -f3)"
