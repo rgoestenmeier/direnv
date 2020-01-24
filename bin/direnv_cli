@@ -3,7 +3,7 @@
 	set -u
 
 #------------------------------------------------------------------------------------------
-	_DEPLOY_VERSION=2.1.2-01
+	_DEPLOY_VERSION=2.1.3-01
 
 #------------------------------------------------------------------------------------------
 	HERE="$PWD"
@@ -141,6 +141,9 @@ relpath()
 {
 	local _RELPATH; _RELPATH="${1:-}"
 
+	REPOSITORIES=/Users/Shared/CLOUD/Development.GitHub/Repositories.FromGithub/repositories
+
+	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$REPOSITORIES/#<REPOSITORIES>/#")"
 	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$MASTER_ROOT/#<MASTER>/#")"
 	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$DEPLOY_ROOT/#<DEPLOY>/#")"
 	_RELPATH="$(echo "$_RELPATH" | sed "1,\$s#$HOME/#<HOME>/#")"
